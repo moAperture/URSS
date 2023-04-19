@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>54.0</apiVersion>
+    <decisions>
+        <name>Determine_Record_Type</name>
+        <label>Determine Record Type</label>
+        <locationX>446</locationX>
+        <locationY>335</locationY>
+        <defaultConnector>
+            <targetReference>Have_All_Travelers_Arrived</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Overland Mission</defaultConnectorLabel>
+        <rules>
+            <name>Aviation_Mission</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.RecordTypeId</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>0123d0000004QrKAAU</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Have_All_Travelers_Arrived_to_RRC_0</targetReference>
+            </connector>
+            <label>Aviation Mission</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>Check to see if all of the travelers on a mission have arrived</description>
+        <name>Have_All_Travelers_Arrived</name>
+        <label>Have All Travelers Arrived</label>
+        <locationX>710</locationX>
+        <locationY>455</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Not_All_Arrived</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Travelers_Arrived__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <elementReference>$Record.Total_Number_of_Travelers__c</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Create_Toast_Message_0_0</targetReference>
+            </connector>
+            <label>Not All Arrived</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>Check to see if all of the travelers on a mission have arrived to RRC</description>
+        <name>Have_All_Travelers_Arrived_to_RRC_0</name>
+        <label>Have All Travelers Arrived to RRC</label>
+        <locationX>182</locationX>
+        <locationY>455</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Not_All_Arrived_In_RRC</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Travelers_Arrived_in_RRC__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <elementReference>$Record.Total_Number_of_Travelers__c</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Create_Toast_Message_0</targetReference>
+            </connector>
+            <label>Not All Arrived In RRC</label>
+        </rules>
+    </decisions>
+    <description>Flow that triggers when a mission is marked as complete. Gives a warning message if there are travelers that have not yet arrived in RRC</description>
+    <interviewLabel>Mission Complete Missing Travelers Alert {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Mission Complete Missing Travelers Alert</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordCreates>
+        <description>Create Toast Message to warn about not all travelers having arrived to RRC upon mission completion</description>
+        <name>Create_Toast_Message_0</name>
+        <label>Create Toast Message</label>
+        <locationX>50</locationX>
+        <locationY>575</locationY>
+        <inputAssignments>
+            <field>Key__c</field>
+            <value>
+                <stringValue>MissingTravelersToast</stringValue>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Title__c</field>
+            <value>
+                <stringValue>Missing Travelers</stringValue>
+            </value>
+        </inputAssignments>
+        <object>ToastEvent__e</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordCreates>
+    <recordCreates>
+        <description>Create Toast Message to warn about not all travelers having arrived to RRC upon mission completion</description>
+        <name>Create_Toast_Message_0_0</name>
+        <label>Create Toast Message</label>
+        <locationX>578</locationX>
+        <locationY>575</locationY>
+        <inputAssignments>
+            <field>Key__c</field>
+            <value>
+                <stringValue>MissingTravelersToast</stringValue>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Title__c</field>
+            <value>
+                <stringValue>Missing Travelers</stringValue>
+            </value>
+        </inputAssignments>
+        <object>ToastEvent__e</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordCreates>
+    <start>
+        <locationX>320</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Determine_Record_Type</targetReference>
+        </connector>
+        <doesRequireRecordChangedToMeetCriteria>true</doesRequireRecordChangedToMeetCriteria>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Status__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Mission Complete</stringValue>
+            </value>
+        </filters>
+        <object>Mission__c</object>
+        <recordTriggerType>Update</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+    <variables>
+        <name>recordId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>The total number of travelers on a mission</description>
+        <name>totalTravelers</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value>
+            <elementReference>$Record.Total_Number_of_Travelers__c</elementReference>
+        </value>
+    </variables>
+</Flow>

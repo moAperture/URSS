@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Import Travelers</description>
+    <frameHeight>600</frameHeight>
+    <hasSidebar>false</hasSidebar>
+    <label>Import Travelers</label>
+    <motif>Custom69: Guitar</motif>
+    <url>https://bancroftglobal.lightning.force.com/lightning/settings/personal/DataImporter/home</url>
+    <urlEncodingKey>UTF-8</urlEncodingKey>
+</CustomTab>

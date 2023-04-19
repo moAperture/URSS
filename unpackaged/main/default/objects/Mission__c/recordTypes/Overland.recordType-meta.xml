@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RecordType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Overland</fullName>
+    <active>true</active>
+    <label>Overland</label>
+    <picklistValues>
+        <picklist>Destination__c</picklist>
+        <values>
+            <fullName>Islamabad</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Kabul</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Kazakhstan</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pakistan</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>RRC</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>Origin__c</picklist>
+        <values>
+            <fullName>Islamabad</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Kabul</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>Status__c</picklist>
+        <values>
+            <fullName>Mission Cancelled</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Mission Complete</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Mission Execution</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Mission Preparation</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Mission Requested</fullName>
+            <default>true</default>
+        </values>
+    </picklistValues>
+</RecordType>

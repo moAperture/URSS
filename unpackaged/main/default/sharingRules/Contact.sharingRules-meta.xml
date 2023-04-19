@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SharingRules xmlns="http://soap.sforce.com/2006/04/metadata">
+    <sharingOwnerRules>
+        <fullName>Field_Contact_Sharing_Rule</fullName>
+        <accessLevel>Read</accessLevel>
+        <label>Field Contact Sharing Rule</label>
+        <sharedTo>
+            <role>Field</role>
+        </sharedTo>
+        <sharedFrom>
+            <allInternalUsers></allInternalUsers>
+        </sharedFrom>
+    </sharingOwnerRules>
+    <sharingOwnerRules>
+        <fullName>Management_Contact_Sharing_Rule</fullName>
+        <accessLevel>Edit</accessLevel>
+        <label>Management Contact Sharing Rule</label>
+        <sharedTo>
+            <role>Management</role>
+        </sharedTo>
+        <sharedFrom>
+            <allInternalUsers></allInternalUsers>
+        </sharedFrom>
+    </sharingOwnerRules>
+</SharingRules>

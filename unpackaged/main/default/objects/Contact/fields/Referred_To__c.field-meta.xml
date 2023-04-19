@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Referred_To__c</fullName>
+    <externalId>false</externalId>
+    <label>Referred To</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>P1</fullName>
+                <default>false</default>
+                <label>P1</label>
+            </value>
+            <value>
+                <fullName>P2</fullName>
+                <default>false</default>
+                <label>P2</label>
+            </value>
+            <value>
+                <fullName>SIV</fullName>
+                <default>false</default>
+                <label>SIV</label>
+            </value>
+            <value>
+                <fullName>SPBD</fullName>
+                <default>false</default>
+                <label>SPBD</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

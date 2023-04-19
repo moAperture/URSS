@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObjectTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+    <caseValues>
+        <plural>false</plural>
+        <value>Traveler</value>
+    </caseValues>
+    <caseValues>
+        <plural>true</plural>
+        <value>Travelers</value>
+    </caseValues>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <layouts>
+        <layout>Traveler Layout</layout>
+        <sections>
+            <label><!-- Check In Information --></label>
+            <section>Check In Information</section>
+        </sections>
+        <sections>
+            <label><!-- Custom Links --></label>
+            <section>Custom Links</section>
+        </sections>
+    </layouts>
+    <recordTypes>
+        <label><!-- Islamabad Aviation --></label>
+        <name>Islamabad_Aviation</name>
+    </recordTypes>
+    <recordTypes>
+        <label><!-- Kabul Aviation --></label>
+        <name>Kabul_Aviation</name>
+    </recordTypes>
+    <recordTypes>
+        <label><!-- Overland --></label>
+        <name>Overland</name>
+    </recordTypes>
+    <startsWith>Consonant</startsWith>
+    <webLinks>
+        <label><!-- Generate_Travel_Document --></label>
+        <name>Generate_Travel_Document</name>
+    </webLinks>
+    <webLinks>
+        <label><!-- Generate_Travel_Documents --></label>
+        <name>Generate_Travel_Documents</name>
+    </webLinks>
+    <webLinks>
+        <label><!-- Mass_Delete --></label>
+        <name>Mass_Delete</name>
+    </webLinks>
+</CustomObjectTranslation>

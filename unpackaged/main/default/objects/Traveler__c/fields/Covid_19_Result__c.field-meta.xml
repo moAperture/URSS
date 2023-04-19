@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Covid_19_Result__c</fullName>
+    <description>The traveler&#39;s covid-19 test results</description>
+    <externalId>false</externalId>
+    <label>Covid-19 Result</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Test not taken</fullName>
+                <default>true</default>
+                <label>Test not taken</label>
+            </value>
+            <value>
+                <fullName>Negative</fullName>
+                <default>false</default>
+                <label>Negative</label>
+            </value>
+            <value>
+                <fullName>Positive</fullName>
+                <default>false</default>
+                <label>Positive</label>
+            </value>
+            <value>
+                <fullName>Awaiting Result</fullName>
+                <default>false</default>
+                <label>Awaiting Result</label>
+            </value>
+            <value>
+                <fullName>Family Member Positive</fullName>
+                <default>false</default>
+                <label>Family Member Positive</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

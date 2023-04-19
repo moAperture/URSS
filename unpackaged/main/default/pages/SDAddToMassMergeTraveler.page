@@ -1,0 +1,12 @@
+<apex:page standardController="Traveler__c" showHeader="false"
+extensions="SDAddToMassMerge"
+recordSetVar="selected"
+action="{!createMassMergeJobs}">
+  <div style="display:none;">
+    <apex:pageBlock >
+      <apex:pageBlockTable value="{!selected}" var="r">
+        <apex:column value="{!r.Id}" />
+      </apex:pageBlockTable>
+    </apex:pageBlock>
+  </div>
+</apex:page>

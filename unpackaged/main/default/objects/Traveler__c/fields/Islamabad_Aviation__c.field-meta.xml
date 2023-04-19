@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Islamabad_Aviation__c</fullName>
+    <description>Used only for Path settings</description>
+    <externalId>false</externalId>
+    <label>Islamabad Aviation</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>No contact made</fullName>
+                <default>false</default>
+                <label>No contact made</label>
+            </value>
+            <value>
+                <fullName>Initial contact made</fullName>
+                <default>false</default>
+                <label>Initial contact made</label>
+            </value>
+            <value>
+                <fullName>Pakistan Entry Stamp Received</fullName>
+                <default>false</default>
+                <label>Pakistan Entry Stamp Received</label>
+            </value>
+            <value>
+                <fullName>Pakistan Visa Received</fullName>
+                <default>false</default>
+                <label>Pakistan Visa Received</label>
+            </value>
+            <value>
+                <fullName>Pakistan Exit Visa Applied For</fullName>
+                <default>false</default>
+                <label>Pakistan Exit Visa Applied For</label>
+            </value>
+            <value>
+                <fullName>Pakistan Exit Visa Received</fullName>
+                <default>false</default>
+                <label>Pakistan Exit Visa Received</label>
+            </value>
+            <value>
+                <fullName>Covid Test Received</fullName>
+                <default>false</default>
+                <label>Covid Test Received</label>
+            </value>
+            <value>
+                <fullName>Arrived at the Airport</fullName>
+                <default>false</default>
+                <label>Arrived at the Airport</label>
+            </value>
+            <value>
+                <fullName>Ticket Provided to Passenger</fullName>
+                <default>false</default>
+                <label>Ticket Provided to Passenger</label>
+            </value>
+            <value>
+                <fullName>Qatar Visa Collected</fullName>
+                <default>false</default>
+                <label>Qatar Visa Collected</label>
+            </value>
+            <value>
+                <fullName>Cleared Immigration</fullName>
+                <default>false</default>
+                <label>Cleared Immigration</label>
+            </value>
+            <value>
+                <fullName>Boarded Plane</fullName>
+                <default>false</default>
+                <label>Boarded Plane</label>
+            </value>
+            <value>
+                <fullName>Arrived at RCC</fullName>
+                <default>false</default>
+                <label>Arrived at RCC</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

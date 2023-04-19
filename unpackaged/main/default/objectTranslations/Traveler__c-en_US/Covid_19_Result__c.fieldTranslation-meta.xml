@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomFieldTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+        <label><!-- Covid-19 Result --></label>
+        <name>Covid_19_Result__c</name>
+        <picklistValues>
+            <masterLabel>Awaiting Result</masterLabel>
+            <translation><!-- Awaiting Result --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Family Member Positive</masterLabel>
+            <translation><!-- Family Member Positive --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Negative</masterLabel>
+            <translation><!-- Negative --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Positive</masterLabel>
+            <translation><!-- Positive --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Test not taken</masterLabel>
+            <translation><!-- Test not taken --></translation>
+        </picklistValues>
+    </CustomFieldTranslation>

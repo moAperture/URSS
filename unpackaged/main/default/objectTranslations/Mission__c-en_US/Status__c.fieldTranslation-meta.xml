@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomFieldTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+        <label><!-- Status --></label>
+        <name>Status__c</name>
+        <picklistValues>
+            <masterLabel>Mission Cancelled</masterLabel>
+            <translation><!-- Mission Cancelled --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Mission Complete</masterLabel>
+            <translation><!-- Mission Complete --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Mission Execution</masterLabel>
+            <translation><!-- Mission Execution --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Mission Preparation</masterLabel>
+            <translation><!-- Mission Preparation --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Mission Requested</masterLabel>
+            <translation><!-- Mission Requested --></translation>
+        </picklistValues>
+    </CustomFieldTranslation>

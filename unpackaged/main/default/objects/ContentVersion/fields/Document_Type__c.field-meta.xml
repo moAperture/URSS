@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Document_Type__c</fullName>
+    <externalId>false</externalId>
+    <label>Document Type</label>
+    <required>true</required>
+    <trackHistory>false</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Passport</fullName>
+                <default>false</default>
+                <label>Passport</label>
+            </value>
+            <value>
+                <fullName>Passport Photo</fullName>
+                <default>false</default>
+                <label>Passport Photo</label>
+            </value>
+            <value>
+                <fullName>Entry Stamp</fullName>
+                <default>false</default>
+                <label>Entry Stamp</label>
+            </value>
+            <value>
+                <fullName>Visa</fullName>
+                <default>false</default>
+                <label>Visa</label>
+            </value>
+            <value>
+                <fullName>Exit Permit</fullName>
+                <default>false</default>
+                <label>Exit Permit</label>
+            </value>
+            <value>
+                <fullName>Tazkira</fullName>
+                <default>false</default>
+                <label>Tazkira</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Other</label>
+            </value>
+            <value>
+                <fullName>Lodging COR Approval</fullName>
+                <default>false</default>
+                <label>Lodging COR Approval</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

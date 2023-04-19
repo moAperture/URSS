@@ -1,0 +1,11 @@
+<template>
+    <lightning-card title="Traveler Images" icon-name="standard:photo">
+        <div class="slds-grid slds-no-flex">
+            <template for:each={dataList} for:item='img'>
+                <div key={img.Id} class="slds-size_1-of-10">
+                    <img key={img.Id} src={img.fileUrl} alt={img.ContentDocumentId} class="image" onclick={previewImage}/>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

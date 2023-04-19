@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Custom metadata to be used to determine which profiles can delete files from objects</description>
+    <label>Delete File Profile</label>
+    <pluralLabel>Delete File Profiles</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomFieldTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+        <label><!-- Relocation Status --></label>
+        <name>Relocation_Status__c</name>
+        <picklistValues>
+            <masterLabel>Airline Ticket Issued</masterLabel>
+            <translation><!-- Airline Ticket Issued --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Arrival in the RRC</masterLabel>
+            <translation><!-- Arrival in the RRC --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Arrived at Border</masterLabel>
+            <translation><!-- Arrived at Border --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Arrived at Third Country</masterLabel>
+            <translation><!-- Arrived at Third Country --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Arrived at the Airport</masterLabel>
+            <translation><!-- Arrived at the Airport --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Boarded Plane</masterLabel>
+            <translation><!-- Boarded Plane --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Cleared Immigration</masterLabel>
+            <translation><!-- Cleared Immigration --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Complete biometrics captured</masterLabel>
+            <translation><!-- Complete biometrics captured --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Covid Test Received</masterLabel>
+            <translation><!-- Covid Test Received --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Initial Biometric Capture</masterLabel>
+            <translation><!-- Initial Biometric Capture --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Initial contact made</masterLabel>
+            <translation><!-- Initial contact made --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Logged onto the bus</masterLabel>
+            <translation><!-- Logged onto the bus --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>No contact made</masterLabel>
+            <translation><!-- No contact made --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Pakistan Entry Stamp Received</masterLabel>
+            <translation><!-- Pakistan Entry Stamp Received --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Pakistan Exit Visa Applied For</masterLabel>
+            <translation><!-- Pakistan Exit Visa Applied For --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Pakistan Exit Visa Received</masterLabel>
+            <translation><!-- Pakistan Exit Visa Received --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Pakistan Visa Received</masterLabel>
+            <translation><!-- Pakistan Visa Received --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Passport &amp; Documents Collected from SEPAR</masterLabel>
+            <translation><!-- Passport &amp; Documents Collected from SEPAR --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Passport Collected</masterLabel>
+            <translation><!-- Passport Collected --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Passport Delivered to Qatar Embassy</masterLabel>
+            <translation><!-- Passport Delivered to Qatar Embassy --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Passport Returned from Embassy</masterLabel>
+            <translation><!-- Passport Returned from Embassy --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Pick Up Details Confirmed</masterLabel>
+            <translation><!-- Pick Up Details Confirmed --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Qatar Visa Collected</masterLabel>
+            <translation><!-- Qatar Visa Collected --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Qatar Visa Received</masterLabel>
+            <translation><!-- Qatar Visa Received --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Successful Border Crossing</masterLabel>
+            <translation><!-- Successful Border Crossing --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Ticket Provided to Passenger</masterLabel>
+            <translation><!-- Ticket Provided to Passenger --></translation>
+        </picklistValues>
+        <picklistValues>
+            <masterLabel>Ticketed</masterLabel>
+            <translation><!-- Ticketed --></translation>
+        </picklistValues>
+    </CustomFieldTranslation>

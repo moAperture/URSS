@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RecordType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Islamabad_Aviation</fullName>
+    <active>true</active>
+    <label>Islamabad Aviation</label>
+    <picklistValues>
+        <picklist>Covid_19_Result__c</picklist>
+        <values>
+            <fullName>Awaiting Result</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Family Member Positive</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Negative</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Positive</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Test not taken</fullName>
+            <default>true</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>Islamabad_Aviation__c</picklist>
+        <values>
+            <fullName>Arrived at RCC</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Arrived at the Airport</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Boarded Plane</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Cleared Immigration</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Covid Test Received</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Initial contact made</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>No contact made</fullName>
+            <default>true</default>
+        </values>
+        <values>
+            <fullName>Pakistan Entry Stamp Received</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pakistan Exit Visa Applied For</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pakistan Exit Visa Received</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pakistan Visa Received</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Qatar Visa Collected</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Ticket Provided to Passenger</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>Relocation_Status__c</picklist>
+        <values>
+            <fullName>Arrival in the RRC</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Arrived at the Airport</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Boarded Plane</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Cleared Immigration</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Covid Test Received</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Initial contact made</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>No contact made</fullName>
+            <default>true</default>
+        </values>
+        <values>
+            <fullName>Pakistan Entry Stamp Received</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pakistan Exit Visa Applied For</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pakistan Exit Visa Received</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pakistan Visa Received</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Qatar Visa Collected</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Ticket Provided to Passenger</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+</RecordType>

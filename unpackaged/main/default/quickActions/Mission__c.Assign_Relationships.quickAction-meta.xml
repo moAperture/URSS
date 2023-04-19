@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Action to assign relationships to travelers based on who their principal applicant is</description>
+    <flowDefinition>Assign_Traveler_Relationships</flowDefinition>
+    <label>Assign Relationships</label>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <type>Flow</type>
+</QuickAction>

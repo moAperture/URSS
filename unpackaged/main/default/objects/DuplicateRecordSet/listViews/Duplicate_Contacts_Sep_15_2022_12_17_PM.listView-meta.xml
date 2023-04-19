@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Duplicate_Contacts_Sep_15_2022_12_17_PM</fullName>
+    <columns>Name</columns>
+    <columns>RecordCount</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>Parent</field>
+        <operation>equals</operation>
+        <value>&quot;Duplicate Contacts Sep 15, 2022 12:17 PM&quot;</value>
+    </filters>
+    <label>Duplicate Contacts Sep 15, 2022 12:17 PM</label>
+</ListView>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lodge_Name__c</fullName>
+    <externalId>false</externalId>
+    <label>Lodge Name</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>true</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Kabul Suits Hotel</fullName>
+                <default>false</default>
+                <label>Kabul Suits Hotel</label>
+            </value>
+            <value>
+                <fullName>City Walk Hotel</fullName>
+                <default>false</default>
+                <label>City Walk Hotel</label>
+            </value>
+            <value>
+                <fullName>Farza Creek Hotel</fullName>
+                <default>false</default>
+                <label>Farza Creek Hotel</label>
+            </value>
+            <value>
+                <fullName>Trivelles</fullName>
+                <default>false</default>
+                <label>Trivelles</label>
+            </value>
+            <value>
+                <fullName>De Grand</fullName>
+                <default>false</default>
+                <label>De Grand</label>
+            </value>
+            <value>
+                <fullName>Grand Regency</fullName>
+                <default>false</default>
+                <label>Grand Regency</label>
+            </value>
+            <value>
+                <fullName>Hotel</fullName>
+                <default>false</default>
+                <label>Hotel</label>
+            </value>
+            <value>
+                <fullName>Apartment</fullName>
+                <default>false</default>
+                <label>Apartment</label>
+            </value>
+            <value>
+                <fullName>Safehouse</fullName>
+                <default>false</default>
+                <label>Safehouse</label>
+            </value>
+            <value>
+                <fullName>Crown Plaza</fullName>
+                <default>false</default>
+                <label>Crown Plaza</label>
+            </value>
+            <value>
+                <fullName>Hayat Palace</fullName>
+                <default>false</default>
+                <label>Hayat Palace</label>
+            </value>
+            <value>
+                <fullName>BM Serviced Apartments</fullName>
+                <default>false</default>
+                <label>BM Serviced Apartments</label>
+            </value>
+            <value>
+                <fullName>Hotel Ornate</fullName>
+                <default>false</default>
+                <label>Hotel Ornate</label>
+            </value>
+            <value>
+                <fullName>Shelton Ambassador Hotel</fullName>
+                <default>false</default>
+                <label>Shelton Ambassador Hotel</label>
+            </value>
+            <value>
+                <fullName>Envoy Continental</fullName>
+                <default>false</default>
+                <label>Envoy Continental</label>
+            </value>
+            <value>
+                <fullName>GBC Serviced Apartments</fullName>
+                <default>false</default>
+                <label>GBC Serviced Apartments</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

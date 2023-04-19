@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Status__c</fullName>
+    <description>The Mission&#39;s Status</description>
+    <externalId>false</externalId>
+    <label>Status</label>
+    <required>false</required>
+    <trackFeedHistory>true</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Mission Requested</fullName>
+                <default>true</default>
+                <label>Mission Requested</label>
+            </value>
+            <value>
+                <fullName>Mission Preparation</fullName>
+                <default>false</default>
+                <label>Mission Preparation</label>
+            </value>
+            <value>
+                <fullName>Mission Execution</fullName>
+                <default>false</default>
+                <label>Mission Execution</label>
+            </value>
+            <value>
+                <fullName>Mission Complete</fullName>
+                <default>false</default>
+                <label>Mission Complete</label>
+            </value>
+            <value>
+                <fullName>Mission Cancelled</fullName>
+                <default>false</default>
+                <label>Mission Cancelled</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
