@@ -580,6 +580,11 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <editable>true</editable>
+        <field>Contact.Mission_Codename__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <editable>false</editable>
         <field>Contact.Mission__c</field>
         <readable>true</readable>
@@ -2002,6 +2007,11 @@
     <fieldPermissions>
         <editable>false</editable>
         <field>Traveler__c.Last_Name__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Traveler__c.Mission_Codename__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

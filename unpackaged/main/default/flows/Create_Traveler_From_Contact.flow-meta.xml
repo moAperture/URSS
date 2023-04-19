@@ -76,6 +76,7 @@
             <label>Duplicate Not Found</label>
         </rules>
     </decisions>
+    <environments>Default</environments>
     <interviewLabel>Create Traveler From Contact {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Create Traveler From Contact v5</label>
     <processMetadataValues>
@@ -102,6 +103,15 @@
         <label>Create Kabul Aviation Traveler</label>
         <locationX>50</locationX>
         <locationY>815</locationY>
+        <connector>
+            <targetReference>Update_Contact1</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Mission_Codename__c</field>
+            <value>
+                <elementReference>varMission.Codename__c</elementReference>
+            </value>
+        </inputAssignments>
         <inputAssignments>
             <field>Mission__c</field>
             <value>
@@ -128,6 +138,15 @@
         <label>Create Islamabad Aviation Traveler</label>
         <locationX>578</locationX>
         <locationY>815</locationY>
+        <connector>
+            <targetReference>Update_Contact1</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Mission_Codename__c</field>
+            <value>
+                <elementReference>varMission.Codename__c</elementReference>
+            </value>
+        </inputAssignments>
         <inputAssignments>
             <field>Mission__c</field>
             <value>
@@ -154,6 +173,15 @@
         <label>Create Overland Traveler</label>
         <locationX>314</locationX>
         <locationY>815</locationY>
+        <connector>
+            <targetReference>Update_Contact1</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Mission_Codename__c</field>
+            <value>
+                <elementReference>varMission.Codename__c</elementReference>
+            </value>
+        </inputAssignments>
         <inputAssignments>
             <field>Mission__c</field>
             <value>
@@ -224,7 +252,21 @@
         <outputReference>varMission</outputReference>
         <queriedFields>Id</queriedFields>
         <queriedFields>RecordTypeId</queriedFields>
+        <queriedFields>Codename__c</queriedFields>
     </recordLookups>
+    <recordUpdates>
+        <name>Update_Contact1</name>
+        <label>Update Contact</label>
+        <locationX>446</locationX>
+        <locationY>1031</locationY>
+        <inputAssignments>
+            <field>Mission_Codename__c</field>
+            <value>
+                <elementReference>varMission.Codename__c</elementReference>
+            </value>
+        </inputAssignments>
+        <inputReference>$Record</inputReference>
+    </recordUpdates>
     <start>
         <locationX>650</locationX>
         <locationY>0</locationY>

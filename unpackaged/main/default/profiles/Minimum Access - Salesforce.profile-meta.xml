@@ -172,6 +172,11 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <editable>true</editable>
+        <field>Contact.Mission_Codename__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <editable>false</editable>
         <field>Contact.Number_Of_Days_In_Lodging__c</field>
         <readable>true</readable>
@@ -554,6 +559,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>ServiceContract.TotalPrice</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Traveler__c.Mission_Codename__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
