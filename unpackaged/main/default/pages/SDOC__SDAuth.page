@@ -1,0 +1,383 @@
+<apex:page controller="SDOC.SDAuth" tabStyle="SDOC__SDTemplate__c" lightningStylesheets="true">
+  <apex:outputPanel id="masterPanel">
+    <style>
+      #one-click-div {
+        top: 0;
+        left: 0;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        z-index: 2000;
+        background-color: white;
+      }
+      .one-click-div-content {
+        position: fixed;
+        right: 47%;
+        bottom: 50%;
+      }
+    </style>
+    <apex:outputPanel rendered="{!NOT(ranInitARToken)}">
+      <apex:form >
+        <apex:actionFunction action="{!initARToken}" name="initARToken" reRender="masterPanel" />
+        <script>
+          addEvent(window, 'load', function() {
+            initARToken();
+          });
+          function addEvent(element, event, fn) {
+            if (element.addEventListener) {
+              element.addEventListener(event, fn, false);
+            } else if (element.attachEvent) {
+              element.attachEvent('on' + event, fn);
+            }
+          }
+        </script>
+      </apex:form>
+    </apex:outputPanel>
+
+    <apex:outputPanel rendered="{!ranInitARToken}">
+      <script>
+        var newWindow;
+        function popURL(url) {
+          newWindow = window.open(url, "SDocs", "width=1100,height=700,top=0,resizable,scrollbars,screenX=60,top=100,screenY=100");
+          try {
+            newWindow.document.location.href = url;
+          } catch(exc) {
+            newWindow.close(); 
+            newWindow = window.open(url, "SDocs", "width=1100,height=700,top=0,resizable,scrollbars,screenX=60,top=100,screenY=100");
+            newWindow.document.location.href = url; 
+          }
+          if (window.focus) {
+            newWindow.focus();
+          }
+        }
+      </script>
+      <apex:form >
+
+        <!-- START: SENDGRID -->
+          <apex:outputPanel rendered="{!service == 'sg'}" id="sengrid-config-container">
+            <apex:pageBlock title="S-Docs SendGrid Configuration">
+              <apex:pageBlockButtons id="aws-config-buttons" location="bottom">
+                <apex:outputPanel id="sengrid-config-buttons">
+                  <apex:commandbutton action="{!sgSaveCredentials}"
+                    value="Save/Update SendGrid Credentials"
+                    oncomplete="alert('SendGrid Credentials Submitted');"
+                    disabled="{!NOT(allSendGridCredentialFieldsFilled)}"
+                  />
+                  <apex:commandbutton action="{!sgRemoveCredentials}"
+                    value="Remove Current SendGrid Credentials"
+                    oncomplete="alert('SendGrid Credentials Removed');"
+                  />
+                </apex:outputPanel>
+              </apex:pageBlockButtons>
+              <apex:pageBlockSection title="Enter Crendentials" collapsible="false" columns="1">
+                <apex:inputText label="Login:" value="{!sgu}">
+                  <apex:actionSupport event="onchange" reRender="sengrid-config-buttons" oncomplete="" />
+                </apex:inputText>
+                <apex:inputSecret label="Password:" value="{!sgpw}">
+                  <apex:actionSupport event="onchange" reRender="sengrid-config-buttons" oncomplete="" />
+                </apex:inputSecret>
+                <apex:inputText label="API Key:" value="{!sgapikey}">
+                  <apex:actionSupport event="onchange" reRender="sengrid-config-buttons" oncomplete="" />
+                </apex:inputText>
+              </apex:pageBlockSection>
+            </apex:pageBlock>
+          </apex:outputPanel>
+        <!-- END: SENDGRID -->
+        
+        <!-- START: AWS S3 -->
+          <apex:outputPanel id="aws-config-container" rendered="{!service == 'aws'}">
+            <apex:pageBlock title="S-Docs AWS S3 Configuration">
+              <apex:pageBlockButtons id="aws-config-buttons" location="bottom">
+                <apex:commandButton action="{!s3SaveCredentials}"
+                  value="Submit S3 Credentials"
+                  oncomplete="alert('S3 Credentials Submitted');"
+                  disabled="{!NOT(allS3CredentialFieldsFilled)}"
+                />
+                <apex:commandButton action="{!s3RemoveCredentials}"
+                  value="Remove S3 Credentials"
+                  oncomplete="alert('S3 Credentials Removed');"
+                />
+              </apex:pageBlockButtons>
+              <apex:pageBlockSection title="Enter Crendentials" collapsible="false">
+                <apex:inputText label="S3 Access Key:" value="{!s3ki}">
+                  <apex:actionSupport event="onchange" reRender="aws-config-container" oncomplete="" />
+                </apex:inputText>
+                <apex:inputText label="S3 Secret Key:" value="{!s3si}">
+                  <apex:actionSupport event="onchange" reRender="aws-config-container" oncomplete="" />
+                </apex:inputText>
+                <apex:inputText label="S3 Bucket Name:" value="{!s3bi}">
+                  <apex:actionSupport event="onchange" reRender="aws-config-container" oncomplete="" />
+                </apex:inputText>
+                <apex:inputText label="S3 Bucket Region (e.g: us-east-2):" value="{!s3ei}">
+                  <apex:actionSupport event="onchange" reRender="aws-config-container" oncomplete="" />
+                </apex:inputText>
+                <apex:inputText label="S3 Proxy URL:" value="{!s3ProxyURL}">
+                  <apex:actionSupport event="onchange" reRender="aws-config-container" oncomplete="" />
+                </apex:inputText>
+                <apex:inputText label="S3 File Path:" value="{!s3FilePath}">
+                  <apex:actionSupport event="onchange" reRender="aws-config-container" oncomplete="" />
+                </apex:inputText>
+              </apex:pageBlockSection>
+            </apex:pageBlock>
+          </apex:outputPanel>
+        <!-- END: AWS S3 -->
+
+        <!-- START: GOOGLE DRIVE -->
+          <apex:outputPanel rendered="{!service == 'gd'}">
+            <apex:actionStatus id="stat">
+              <apex:facet name="start">
+                Uploading Documents, please wait...
+                <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+              </apex:facet>
+            </apex:actionStatus>
+            <apex:outputPanel rendered="{!NOT(hasGoogleDriveToken)}">
+              <apex:pageMessages />
+              <apex:pageBlock title="S-Docs Google Drive Configuration">
+                <apex:pageBlockSection columns="1" collapsible="false">
+                  <apex:outputText >
+                    By clicking the button below, you will be redirected to your Google Drive sign in page.<br/>
+                    You need to verify your account and authorize S-Docs for Salesforce permission to upload documents.<br/><br/>
+                    <apex:commandbutton action="{!requestGoogleDriveToken}" value="Authorize Google Drive Access" />
+                  </apex:outputText>
+                </apex:pageBlockSection>
+              </apex:pageBlock>
+            </apex:outputPanel>
+            <apex:outputPanel id="nt" rendered="{!hasGoogleDriveToken}">
+              <apex:pageBlock title="Upload S-Docs to Google Drive">
+                <apex:outputPanel id="list">
+                  <apex:pageBlockSection title="S-Docs Queued for Upload" columns="1" collapsible="false">                       
+                    <apex:pageBlockSectionItem >
+                      <apex:pageBlockTable value="{!googleDriveSDWrapperList}" var="ag">
+                        <apex:column width="40px" headerValue="View">
+                          <apex:outputText escape="false" value="{!ag.updatedViewLink}" />
+                        </apex:column>
+                        <apex:column headerValue="Document Number">
+                          <apex:outputLink value="{!URLFOR(ag.sdoc.SDOC__GD_Link__c, null)}" target="_blank">{!ag.sdoc.Name}</apex:outputLink>
+                        </apex:column>
+                        <apex:column value="{!ag.sdoc.SDOC__Document_Name__c}" headerValue="Document Name"/>                          
+                        <apex:column headerValue="Google Docs Status">
+                          <apex:outputLink rendered="{!NOT(ag.sdoc.SDOC__GD_Status_Text__c=='Queued')}" value="{!URLFOR(ag.sdoc.SDOC__GD_Link__c, null)}" target="_blank">
+                            {!ag.sdoc.SDOC__GD_Status_Text__c}
+                          </apex:outputLink>
+                          <apex:outputText rendered="{!ag.sdoc.SDOC__GD_Status_Text__c=='Queued'}" value="{!ag.sdoc.SDOC__GD_Status_Text__c}"/>
+                        </apex:column>                        
+                        <apex:column headerValue="Remove from Queue">
+                          <apex:commandButton value="Remove"
+                            reRender="nt"
+                            rendered="{!(ag.sdoc.SDOC__GD_Status_Text__c=='Queued')}"
+                            action="{!removeFromGoogleDriveQueue}"
+                            styleClass="btn"
+                            oncomplete=""
+                          >
+                            <apex:param name="did" value="{!ag.sdoc.ID}" />
+                          </apex:commandButton>
+                        </apex:column>
+                        <apex:column value="{!ag.sdoc.CreatedBy.Name}" headerValue="Created By"/> 
+                        <apex:column value="{!ag.sdoc.CreatedDate}" headerValue="Created On"/> 
+                      </apex:pageBlockTable>
+                    </apex:pageBlockSectionItem>
+                  </apex:pageBlockSection>
+                  <apex:pageBlockSection columns="1">
+                    <apex:outputText rendered="{!NOT(noSDocsQueuedForUpload)}">
+                      Click the button below to upload and link the above document(s) to your Google Drive account.<br/>
+                      Once the upload is complete, use Google Drive to manage edits and sharing rights for each document.
+                    </apex:outputText>
+                    <apex:commandbutton action="{!createGoogleDriveDoc}"
+                      reRender="list"
+                      status="stat"
+                      value="Upload to Google Drive"
+                      disabled="{!noSDocsQueuedForUpload}"
+                    />
+                  </apex:pageBlockSection>
+                </apex:outputPanel>
+              </apex:pageBlock>
+              <apex:pageBlock title="S-Docs Google Drive Configuration">
+                <apex:commandButton action="{!unlinkGoogleDrive}"
+                  value="Unlink S-Docs from my Google Drive Account"
+                  reRender=""
+                  oncomplete=""
+                />
+              </apex:pageBlock>
+            </apex:outputPanel>
+          </apex:outputPanel>
+        <!-- END: GOOGLE DRIVE -->
+
+        <!-- START: MICROSOFT SHAREPOINT -->
+        <apex:outputPanel rendered="{!service == 'sp'}">
+          <apex:actionStatus id="stat-sp-token">
+            <apex:facet name="start">
+              Sending request, please wait...
+              <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+            </apex:facet>
+          </apex:actionStatus>
+          <apex:actionStatus id="stat-sp">
+            <apex:facet name="start">
+              Uploading Documents, please wait...
+              <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+            </apex:facet>
+          </apex:actionStatus>
+          <apex:actionStatus id="stat-sp-name-change">
+            <apex:facet name="start">
+              Changing values, please wait...
+              <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+            </apex:facet>
+          </apex:actionStatus>
+          <apex:outputPanel rendered="{!NOT(hasSharePointToken)}">
+            <apex:pageMessages escape="false" />
+            <apex:pageBlock title="S-Docs Microsoft SharePoint Configuration">
+              <apex:pageBlockSection title="Enter Crendentials" collapsible="false">
+                <apex:inputText label="SharePoint Client ID:" value="{!sharePointClientIdInput}" />
+                <apex:inputText label="SharePoint Client Secret:" value="{!sharePointClientSecretInput}" />
+                <apex:inputText label="SharePoint Site URL:" value="{!sharePointDomainInput}" />
+                <apex:inputText label="Redirect URI:" value="{!sharePointRedirectUriInput}" />
+              </apex:pageBlockSection>
+              <apex:pageBlockSection columns="1" collapsible="false" rendered="{!NOT(hasSharePointCode)}">
+                <apex:outputText >
+                  By clicking the button below, you will be redirected to your Microsoft SharePoint app in a new tab.<br/>
+                  You will be asked if you trust your app. Please select "Trust It". After that, you will be redirected back here.<br/><br/>
+                </apex:outputText>
+                <apex:commandbutton action="{!redirectToSharePointAuthCodeLink}" value="Authorize Microsoft SharePoint Access"/>
+              </apex:pageBlockSection>
+            </apex:pageBlock>
+          </apex:outputPanel>
+          <apex:outputPanel id="nt-sp" rendered="{!hasSharePointToken}">
+            <apex:pageBlock title="Upload S-Docs to Microsoft SharePoint">
+              <apex:outputPanel id="list-sp">
+                <apex:pageBlockSection id="queue-table" title="S-Docs Queued for Upload" columns="1" collapsible="false">   
+                  <style>
+                    .edit-icon:hover {
+                      cursor: pointer;
+                    }
+                  </style>
+                  <script>
+                    function listenForEnterKey(event, isDocumentLibraryChange, idIn) {
+                      if (event.key === "Enter") {
+                        if (isDocumentLibraryChange) {
+                          switchToDocumentLibraryOutput(idIn);
+                        }
+                        else {
+                          switchToFolderNameOutput(idIn)
+                        }
+                      }
+                    }
+                    function switchToFolderNameInput(idIn) {
+                      var textElement = document.getElementsByClassName('folder-name-out-' + idIn)[0];
+                      var inputElement = document.getElementsByClassName('folder-name-in-' + idIn)[0];
+                      textElement.style = 'display: none;';
+                      inputElement.style = 'display: inline;';
+                      editSharePointTargetField();
+                    }
+                    function switchToDocumentLibraryInput(idIn) {
+                      var textElement = document.getElementsByClassName('doc-library-out-' + idIn)[0];
+                      var inputElement = document.getElementsByClassName('doc-library-in-' + idIn)[0];
+                      textElement.style = 'display: none;';
+                      inputElement.style = 'display: inline;';
+                      editSharePointTargetField();
+                    }
+                    function switchToFolderNameOutput(idIn) {
+                      var textElement = document.getElementsByClassName('folder-name-out-' + idIn)[0];
+                      var inputElement = document.getElementsByClassName('folder-name-in-' + idIn)[0];
+                      textElement.style = 'display: inline;';
+                      inputElement.style = 'display: none;';
+                      changeFolderName(inputElement.value, idIn);
+                      textElement.innerHTML = inputElement.value;
+                      return false;
+                    }
+                    function switchToDocumentLibraryOutput(idIn) {
+                      var textElement = document.getElementsByClassName('doc-library-out-' + idIn)[0];
+                      var inputElement = document.getElementsByClassName('doc-library-in-' + idIn)[0];
+                      textElement.style = 'display: inline;';
+                      inputElement.style = 'display: none;';
+                      changeDocumentLibrary(inputElement.value, idIn);
+                      textElement.innerHTML = inputElement.value;
+                      return false;
+                    }
+                  </script>
+                  <apex:actionFunction action="{!editSharePointTargetField}" name="editSharePointTargetField" reRender="sharepoint-upload-button" oncomplete="" />
+                  <apex:actionFunction action="{!changeDocumentLibrary}" name="changeDocumentLibrary" reRender="sharepoint-upload-button" oncomplete="" status="stat-sp-name-change">
+                    <apex:param name="newDocumentLibrary" value="" assignTo="{!newDocumentLibrary}" />
+                    <apex:param name="currentSPSDWrapperId" value="" assignTo="{!currentSPSDWrapperId}" />
+                  </apex:actionFunction>
+                  <apex:actionFunction action="{!changeFolderName}" name="changeFolderName" reRender="sharepoint-upload-button" oncomplete="" status="stat-sp-name-change">
+                    <apex:param name="newFolderName" value="" assignTo="{!newFolderName}" />
+                    <apex:param name="currentSPSDWrapperId" value="" assignTo="{!currentSPSDWrapperId}" />
+                  </apex:actionFunction>
+                  <apex:pageBlockSectionItem >
+                    <apex:pageBlockTable value="{!sharePointSDWrapperList}" var="ag">
+                      <apex:column width="40px" headerValue="View">
+                        <apex:outputText escape="false" value="{!ag.updatedViewLink}" />
+                      </apex:column>
+                      <apex:column headerValue="Document Number">
+                        <apex:outputLink value="/{!ag.sdoc.Id}" target="_blank" >{!ag.sdoc.Name}</apex:outputLink>
+                      </apex:column>
+                      <apex:column value="{!ag.sdoc.SDOC__Document_Name__c}" headerValue="Document Name"/>
+                      <apex:column headerValue="Document Library">
+                        <div class="doc-library-out-{!ag.sdoc.Id}" style="display: inline;">
+                          {!ag.documentLibrary}
+                        </div>
+                        <apex:inputText styleClass="doc-library-in-{!ag.sdoc.Id}" value="{!ag.documentLibrary}" style="display: none;" onkeyup="listenForEnterKey(event, true, '{!ag.sdoc.Id}');" onblur="switchToDocumentLibraryOutput('{!ag.sdoc.Id}');"/>
+                        <apex:outputPanel rendered="{!ag.sdoc.SDTemplate__r.SDOC__Allow_SharePoint_Target_Editing__c}">
+                          <img src='/img/icon/custom51_100/pencil16.png' alt='Edit' border='0' class="edit-icon" style="float: right;" onclick="switchToDocumentLibraryInput('{!ag.sdoc.Id}');"/>
+                        </apex:outputPanel>
+                      </apex:column>
+                      <apex:column headerValue="Target Folder">
+                        <div class="folder-name-out-{!ag.sdoc.Id}" style="display: inline;">
+                          {!ag.folderName}
+                        </div>
+                        <apex:inputText styleClass="folder-name-in-{!ag.sdoc.Id}" value="{!ag.folderName}" style="display: none;" onkeyup="listenForEnterKey(event, false, '{!ag.sdoc.Id}');" onblur="switchToFolderNameOutput('{!ag.sdoc.Id}');"/>
+                        <apex:outputPanel rendered="{!ag.sdoc.SDTemplate__r.SDOC__Allow_SharePoint_Target_Editing__c}">
+                          <img src='/img/icon/custom51_100/pencil16.png' alt='Edit' border='0' class="edit-icon" style="float: right;" onclick="switchToFolderNameInput('{!ag.sdoc.Id}');"/>
+                        </apex:outputPanel>
+                      </apex:column>
+                      <apex:column headerValue="SharePoint Status">
+                          <apex:outputLink rendered="{!NOT(ag.sdoc.SDOC__SP_Status_Text__c=='Queued')}" value="{!URLFOR(ag.sdoc.SDOC__SP_Link__c, null)}" target="_blank">
+                            {!ag.sdoc.SDOC__SP_Status_Text__c}
+                          </apex:outputLink>
+                        <apex:outputText rendered="{!ag.sdoc.SDOC__SP_Status_Text__c=='Queued'}" value="{!ag.sdoc.SDOC__SP_Status_Text__c}"/>
+                      </apex:column>                        
+                      <apex:column headerValue="Remove from Queue">
+                        <apex:commandButton value="Remove"
+                          reRender="nt-sp"
+                          rendered="{!(ag.sdoc.SDOC__SP_Status_Text__c=='Queued')}"
+                          action="{!removeFromSharePointQueue}"
+                          styleClass="btn"
+                          oncomplete=""
+                        >
+                          <apex:param name="did" value="{!ag.sdoc.ID}" />
+                        </apex:commandButton>
+                      </apex:column>
+                      <apex:column value="{!ag.sdoc.CreatedBy.Name}" headerValue="Created By"/> 
+                      <apex:column value="{!ag.sdoc.CreatedDate}" headerValue="Created On"/> 
+                    </apex:pageBlockTable>
+                  </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection columns="1">
+                  <apex:outputText rendered="{!NOT(noSPSDocsQueuedForUpload)}">
+                    Click the button below to upload and link the above document(s) to your Microsoft SharePoint account.<br/>
+                    Once the upload is complete, use Microsoft SharePoint to manage edits and sharing rights for each document.
+                  </apex:outputText>
+                  <apex:commandbutton id="sharepoint-upload-button"
+                    action="{!createSharePointDoc}"
+                    reRender="list-sp"
+                    status="stat-sp"
+                    value="Upload to Microsoft SharePoint"
+                    disabled="{!OR(noSPSDocsQueuedForUpload, editingSharePointTargetFieldsNum > 0)}"
+                  />
+                </apex:pageBlockSection>
+              </apex:outputPanel>
+            </apex:pageBlock>
+            <apex:pageBlock title="S-Docs Microsoft SharePoint Configuration">
+              <apex:commandButton action="{!unlinkSharePoint}"
+                value="Unlink S-Docs from my Microsoft SharePoint Account"
+                reRender=""
+                oncomplete=""
+              />
+            </apex:pageBlock>
+          </apex:outputPanel>
+        </apex:outputPanel>
+      <!-- END: MICROSOFT SHAREPOINT -->
+
+      </apex:form>
+    </apex:outputPanel>
+  </apex:outputPanel>
+</apex:page>

@@ -1,0 +1,8 @@
+<apex:page standardController="SDOC__SDJob__c" extensions="SDOC.SDJobTemplateController" showHeader="false" standardStylesheets="false"
+renderas="pdf" ApplyhtmlTag="false" cache="true" action="{!initDeleteJobs}">
+<head>
+<apex:dynamicComponent componentValue="{!headerXML}" />
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'SDoc.css')}" />
+</head>
+<apex:dynamicComponent componentValue="{!templateXML}" />
+</apex:page>

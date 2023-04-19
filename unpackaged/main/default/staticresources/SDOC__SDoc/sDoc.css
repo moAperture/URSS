@@ -1,0 +1,144 @@
+<style type="text/css">
+	body
+	{
+ 	    font-family: Arial Unicode MS;
+	}
+        .styleInvisible
+        {
+            font-family:Arial Unicode MS;
+            font-size:1pt;
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+        .headerbox
+        {
+            font-family:Arial Unicode MS;
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+        .style1
+        {
+            font-family:Arial Unicode MS;
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+        .style2
+        {
+	    font-size:2pt;
+            font-family:Arial Unicode MS;
+        }
+        .style1b
+        {
+            font-family:Arial Unicode MS;
+            font-size:8pt;
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+        .style6
+        {
+	    font-size:6pt;
+            font-family:Arial Unicode MS;
+        }
+       	.style6b
+        {
+            font-family:Arial Unicode MS;
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+            font-size:6pt;
+        }         
+        .style7
+        {
+	    font-size:7pt;
+            font-family:Arial Unicode MS;
+        }
+        .style7b
+        {
+            font-family:Arial Unicode MS;
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+            font-size:7pt;
+        }
+        .style8
+        {
+	    font-size:8pt;
+            font-family:Arial Unicode MS;
+        }
+        .style8b
+        {
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+            font-size:8pt;
+        }
+        .style9
+        {
+            font-size:9pt;
+            font-family:Arial Unicode MS;
+        }
+        .style9b
+        {
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+            font-size:9pt;
+        }
+        .style10
+        {
+            font-size:10pt;
+            font-family:Arial Unicode MS;
+        }
+        .style10b
+        {
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+            font-size:10pt;
+        }
+	.style39
+        {
+            font-size:39pt;
+        }
+     	.headerRow1
+        {
+	    font-size:10pt;
+	    background-color:#C0C0C0;
+	    font-family: Calibri;
+            border-color:Black;
+            border-style:solid;
+            border-width: 1px 1px 1px 1px;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+	.dataRowOdd
+        {
+	background-color:#FFFFFF;
+        }
+	.dataRowEven
+        {
+	background-color:#F5F5F5;
+        }	
+</style>

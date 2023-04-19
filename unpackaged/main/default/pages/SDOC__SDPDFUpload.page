@@ -1,0 +1,2106 @@
+<apex:page controller="SDOC.SDPDFUploadController" docType="html-5.0" sidebar="false" showHeader="false" action="{!initPDFUpload}" lightningStylesheets="true">
+  <apex:stylesheet value="{!URLFOR($Resource.SDOC__jQueryUI, '/jquery-ui-1.12.1/jquery-ui.css')}" />
+  <head>
+    <link href="https://fonts.googleapis.com/css?family=Alex+Brush|Petit+Formal+Script|Dynalight|Great+Vibes|Cedarville+Cursive|Playball|Mr+Dafoe|Parisienne|Pinyon+Script|Rochester|Cedarville+Cursive|Homemade+Apple|La+Belle+Aurore|Allura|Felipa|Qwigley|Arizonia|Aguafina+Script|Meddon|&display=swap" rel="stylesheet"></link>
+  </head>
+<script>
+  // This field is how many pixels we are allowing the field to
+  // spill over to the right of the page in a case
+  // where someone wants to drag a field all the way to the edge
+  // DROPTARGET_HEIGHT_SPILLOVER exists in case we ever need it
+  var DROPTARGET_WIDTH_SPILLOVER = 128;
+  var DROPTARGET_HEIGHT_SPILLOVER = 0;
+  var PDF_HEIGHT = parseFloat({!sdt.MS_Page_Height__c}) * 96;
+  var PDF_WIDTH = parseFloat({!sdt.MS_Page_Width__c}) * 96;
+  var DROPTARGET_HEIGHT = 19;
+  var DROPTARGET_WIDTH = 138;
+
+  var inputFieldsMapString = JSON.parse('{!JSENCODE(PDFUploadInputFieldsJSON)}');
+  var inputFieldsMap = new Map();
+  for (inputFieldID in inputFieldsMapString) {
+    inputFieldsMap.set(inputFieldID, inputFieldsMapString[inputFieldID]);
+  }
+
+  function removeInputFieldFromMap (id) {
+    inputFieldsMap.remove(id);
+  }
+
+  function addInputFieldToMap (id) {
+    inputFieldsMap.set(id,
+      {
+        "additionalStyle": "",
+        "defaultStyle": "",
+        "inputFieldID": "",
+        "isSSignInputField": false,
+        "leftPixels": "",
+        "mergeFieldRender": "",
+        "mergeFieldValue": "",
+        "pageNumber": "",
+        "topPixels": ""
+      }
+    );
+  }
+
+  function setInputFieldSSignBoolean (id, isSSign) {
+    inputFieldsMap.get(id).isSSignInputField = isSSign;
+  }
+</script>
+
+<style>
+    /* STYLE FOR BOTH PANELS */
+
+    .droptarget {
+      width: 135px;
+      height: 15px;
+      display: inline-block;
+      border-radius: 6px;
+      padding: 2px;
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      font-weight: normal !important;
+      text-align: center;
+      font-size: 11.36px;
+    }
+    .editorDropTargetPlaced {
+      margin-top: 12px;
+      height: 15px;
+      draggable: false;
+      visibility: hidden;
+      display: none;
+      color: grey;
+      background-color: white;
+    }
+    .editorDropTargetReady {
+      margin-top: 12px;
+      height: 15px;
+      draggable: true;
+      visibility: visible;
+      background-color: #29AAE2;
+      color: white;
+      font-size: 11.36px;
+    }
+    .pdfDropTarget {
+      color: white;
+      background-color: #29AAE2;
+      font-size: 11.36px;
+    }
+
+    #mergeFieldContainer {
+      position: fixed;
+      width: auto;
+      height: auto;
+      left: 65%;
+      top: 10%;
+      margin-left: -300px;
+      z-index: 10000000;
+    }
+    .mergeFieldContainer {
+      position: fixed;
+      width: auto;
+      height: auto;
+      left: 65%;
+      top: 10%;
+      margin-left: -300px;
+      z-index: 10000000;
+    }
+
+    .reDragFieldHidden {
+      visibility: hidden;
+    }
+
+    .reDragFieldVisible:after {
+      visibility: visible;
+    }
+
+    .numberClass {
+      margin-top:6px;
+      text-align:center;
+      width:40px;
+      height:40px;
+      border-radius:50px;
+      background-color:#29AAE2;
+      color:white;
+      font-size:17px;
+      line-height: 40px;
+    }
+
+    .slds-vf-scope .rich-tabpanel-content {
+      padding: 0 !important;
+    }
+
+    a[name="skiplink"] {
+      display: none;
+    }
+</style>
+
+<apex:outputPanel rendered="{!JSENCODE($CurrentPage.parameters.editor)!='true'}" layout="none">
+<style>
+  /* STYLE FOR MAIN PANEL */
+
+  .input {
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 6px 0px;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .center {
+      position: relative;          /* where the next element will be automatically positioned */
+      display: inline-block;       /* causes element width to shrink to fit content */
+      left: 50%;                   /* moves left side of image/element to center of parent element */
+      transform: translate(-50%);  /* centers image/element on "left: 50%" position */
+  }
+
+  .fileInput {
+    width: 100%;
+    padding: 0;
+    font-size: 16px;
+  }
+
+  html body.sfdcBody {
+    padding-left: 10px !important;
+  }
+
+  .chooseFile {
+    float:left;
+    width: 60%;
+  }
+
+  .uploadFile {
+    float:right;
+  }
+
+  .drop-container {
+    position: fixed;
+    top: 0px;
+    width:27.5%;
+    float: left;
+  }
+
+  .filetarget {
+      float: right;
+  }
+
+  .emailInput {
+    width: 50px;
+  }
+
+  .newEmail {
+    width: 100px; 
+    height: 65px;
+    margin: 15px;
+    padding: 10px;
+  }
+
+  .droppable {
+      position: absolute;
+      z-index: 10; 
+  }
+
+  .iframeClass {
+    width: 95%;
+    height: 520px;
+    border-radius:6px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    border:1px solid #D4DADC;
+    background-color:white;
+  }
+
+  .hiddenSettings {
+    height: 0 !important;
+    width: 0 !important;
+    float: left;
+  }
+
+  #loading-div {
+    top: 0;
+    left: 0;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    opacity: 1.0;
+    background-color: white;
+  }
+  #loading-div-spinner {
+    position: fixed;
+    right: 47%;
+    bottom: 50%;
+  }
+  #loading-div-message-percentage {
+    font-size: 36px;
+    /* #29AAE2 for S-Sign Blue. #0070D2 for Loading Spinner Blue. */
+    color:#29AAE2;
+  }
+  #loading-div-message {
+    font-size: 32px;
+    right: 42%;
+    bottom: 50%;
+    position: fixed;
+    font-weight: bold;
+    font-family: sans-serif;
+    color: #797B7D;
+    text-align: center;
+  }
+
+  .mergeFieldTable {
+    width:80%;
+  }
+
+  select {
+    font-family: sans-serif;
+    font-size: 12px;
+  }
+
+  .mergeFieldSelectList {
+    max-height: 106px;
+    width: 95% !important;
+  }
+
+  .fileType {
+      display: block;
+      position: relative;
+      width: 200px;
+      margin: auto;
+      cursor: pointer;
+      border: 0;
+      height: 60px;
+      border-radius: 5px;
+      outline: 0;
+      font-family: sans-serif;
+  }
+
+  .fileType:hover:after {
+      background: rgb(24, 124, 167);
+      color: white;
+  }
+
+  .fileType:after {
+      transition: 200ms all ease;
+      border-bottom: 3px solid rgba(0,0,0,.2);
+      background: #29AAE2;
+      text-shadow: 0 2px 0 rgba(0,0,0,.2);
+      color: white;
+      font-size: 20px;
+      text-align: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      content: 'Upload PDF File';
+      line-height: 60px;
+      border-radius: 5px;
+  }
+
+  #pages-container {
+    background-color: grey;
+    width: 73%;
+    position: fixed;
+    overflow: auto;
+    overscroll-behavior: auto;
+  }
+  .page-container {
+    position: absolute;
+    padding: .1in .1in .1in .1in;
+    position: relative;                 /* where the next element will be automatically positioned */
+    display: block;                     /* causes element width to shrink to fit content */
+    margin-left: auto;                  /* centers the uploaded PDF */
+    margin-right: auto;                 /* centers the uploaded PDF */
+    width: {!sdt.SDOC__MS_Page_Width__c}in;
+    height: {!sdt.SDOC__MS_Page_Height__c}in;
+  }
+  .page-image {
+    box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 12px 40px 0 rgba(0, 0, 0, 0.19);
+    width: {!sdt.SDOC__MS_Page_Width__c}in;
+    height: {!sdt.SDOC__MS_Page_Height__c}in;
+  }
+  .resizable { width: 150px; height: 150px; padding: 0.5em; }
+  .resizable h3 { text-align: center; margin: 0; }
+
+</style>
+
+<apex:outputPanel rendered="{!showLightningUI}" layout="none">
+  <style>
+    .droptarget {
+      height: 19px;
+      padding: 0 !important;
+    }
+  </style>
+</apex:outputPanel>
+<apex:outputPanel rendered="{!NOT(showLightningUI)}" layout="none">
+  <apex:stylesheet value="/sCSS/21.0/sprites/1297816277000/Theme3/default/gc/versioning.css" />
+  <style>
+    .mergeFieldSelectList {
+      max-height: 125px !important;
+    }
+  </style>
+</apex:outputPanel>
+
+<div id="loading-div">
+  <img width="80" id="loading-div-spinner" src="{!URLFOR($Resource.SDoc,'lightning_spinner.gif')}" class="undraggable" unselectable="on" />
+  <div id="loading-div-message" style="display:none;">Loading PDF-Upload Editor...<br /><br /><span id="loading-div-message-percentage">0%</span></div>
+</div>
+<apex:outputPanel id="pdfStringPanel">
+    <script>
+        if('{!pdfString}' !== 'No file exists' && '{!pdfString}' !== ''){
+            showLoadingDiv('22222');
+            getText(dataURLtoFile('{!pdfString}', 'pdf_test.pdf'));
+        }
+        //POST MESSAGE HERE TO TEMPLATE EDITOR with inputFieldXML as well as coordinates
+    </script>
+</apex:outputPanel>
+
+
+
+
+  <div id="body-div">
+    <img id='SSign_Logo' src="{!URLFOR($Resource.SDoc,'s-sign_logo.png')}" style="position: absolute; top: 35px; left: 50px; z-index: -1;" />
+    
+    <div id='profile-dropdown' style="display:inline-block; width: 800px; min-height:100px; margin: auto; margin-bottom:30px; margin-top:30px; font-size: 12px; display: none;">
+      
+      <!--<table class="list slds-vf-data-table" style="margin: auto;" id="j_id0:j_id1:mainBlock:j_id2" border="0" cellpadding="0" cellspacing="0">
+        <colgroup span="4"></colgroup>
+        <thead class="">
+          <tr class="headerRow">
+            <th class="headerRow" scope="col" colspan="1" id="j_id0:j_id1:mainBlock:j_id2:j_id3header">
+              <div id="j_id0:j_id1:mainBlock:j_id2:j_id3header:sortDiv">Change Order</div>
+            </th>
+            <th class="headerRow" scope="col" colspan="1" id="j_id0:j_id1:mainBlock:j_id2:j_id7header">
+              <div id="j_id0:j_id1:mainBlock:j_id2:j_id7header:sortDiv">Order</div>
+            </th>
+            <th class="headerRow" scope="col" colspan="1" id="j_id0:j_id1:mainBlock:j_id2:j_id9header">
+              <div id="j_id0:j_id1:mainBlock:j_id2:j_id9header:sortDiv">Name</div>
+            </th>
+            <th class="headerRow" scope="col" colspan="1" id="j_id0:j_id1:mainBlock:j_id2:j_id11header">
+              <div id="j_id0:j_id1:mainBlock:j_id2:j_id11header:sortDiv">Email</div>
+            </th>
+          </tr>
+        </thead>
+        <tbody id="signers">
+          
+        </tbody>
+      </table>-->
+      <apex:form rendered="{!isOneOff}">
+        <apex:pageBlock id="mainBlock" title="Add Signers">
+          <apex:pageBlockTable value="{!signerProfiles.signerProfileList}" var="sp">
+            <apex:column headerValue="Change Order" style="width:200px;">
+              <apex:commandButton value="Λ" action="{!signerProfiles.moveUp}" rerender="mainBlock,signerScript" disabled="{!NOT(sp.routingPosition > 0)}">
+                  <apex:param name="up-param" value="{!sp.routingPosition}" assignTo="{!signerProfiles.rpToMove}" />
+              </apex:commandButton>
+              <apex:commandButton value="V" action="{!signerProfiles.moveDown}" rerender="mainBlock,signerScript" disabled="{!NOT(sp.routingPosition < (signerProfiles.numProfiles - 1))}">
+                  <apex:param name="up-param" value="{!sp.routingPosition}" assignTo="{!signerProfiles.rpToMove}" />
+              </apex:commandButton>
+            </apex:column>
+            <apex:column headerValue="Order" style="width:200px;">
+              Signer {!sp.routingPositionOneIndexed}
+            </apex:column>
+            <apex:column headerValue="Name" style="width:200px;">
+              <apex:inputText value="{!sp.signerName}"> 
+                <apex:actionSupport event="onchange" oncomplete="loadSignerProfiles()" rerender="signerScript"/>
+              </apex:inputText>
+            </apex:column>
+            <apex:column headerValue="Email">
+              <apex:inputText value="{!sp.signerEmail}">
+                <apex:actionSupport event="onchange" oncomplete="loadSignerProfiles()" rerender="signerScript"/>
+              </apex:inputText>
+            </apex:column>
+          </apex:pageBlockTable>
+          <apex:commandButton value="Add Signer" style="margin: auto;" action="{!signerProfiles.addSigner}" rerender="mainBlock,signerScript" />
+          
+        </apex:pageBlock>
+        <apex:outputPanel id="signerScript">
+          <script>
+            function getSignerProfileList() {
+              return JSON.parse('{!signerProfileListJSON}');
+            }
+          </script>
+        </apex:outputPanel>
+      </apex:form>
+    </div>
+  	<div id="drop-container-wrapper" style="display:inline-block;float:left;width:27.5%;height:10in;">
+	  	<div class="drop-container">
+        <apex:form id="mergeFieldLists" styleClass="input fileInput">
+          <apex:actionFunction action="{!loadSavedFileIfExists}" name="loadSavedFileIfExists" reRender="pdfStringPanel" oncomplete=""/>
+          <apex:actionFunction action="{!setPDFUploaded}" name="setPDFUploaded" reRender="uploadPDFFileOneOff,submit-one-off" oncomplete=""/>
+          <apex:actionFunction action="{!createSDocOneOff}" name="createSDocOneOff" oncomplete=""/>
+          <apex:inputHidden id="outputMergeField" value="{!output}"/>
+          <apex:inputHidden id="templateXMLString" value="{!templateXMLString}"/>
+          <apex:tabPanel id="insert-field-tab-panel" headerClass="tabPanel" activeTabClass="activeTab" 
+                              inactiveTabClass="inactiveTab" reRender="insert-field-tab-panel" switchType="client">   
+            <apex:tab label="{!sdt.SDOC__Base_Object__c} Fields" style="font-weight:bold;">
+                <apex:pageBlock >
+                  <apex:pageblocksection columns="1">
+                      <apex:outputpanel id="l1">
+                          <apex:outputtext value="{!f1Obj}" style="font-weight : bold;"/><br />
+                          <apex:selectList value="{!f1}" size="12" id="f1" styleClass="mergeFieldSelectList"> 
+                              <apex:selectOptions value="{!f1List}" />
+                                  <apex:actionSupport event="onchange" action="{!level1}" rerender="leftField,mergeFieldLists,l2,l3,o,merge_field_output_4" status="statLoad1"/>
+                          </apex:selectList>
+                      </apex:outputpanel>
+                    </apex:pageblocksection>
+                    <apex:pageblocksection columns="1">
+                    <apex:outputpanel id="l2" rendered="{!NOT(ISNULL(f2List))}" >
+                      <apex:outputtext value="{!f2Obj}" style="font-weight : bold;"/><br />
+                          <apex:selectList value="{!f2}" size="12" id="f2"  rendered="{!NOT(ISNULL(f2List))}" styleClass="mergeFieldSelectList"> 
+                              <apex:selectOptions value="{!f2List}" />
+                              <apex:actionSupport event="onchange" action="{!level2}" rerender="leftField,mergeFieldLists,l3,o,merge_field_output_4" status="statLoad1"/>
+                          </apex:selectList>
+                      </apex:outputpanel>
+                    </apex:pageblocksection>
+                    <apex:pageblocksection columns="1">
+                    <apex:outputpanel id="l3" rendered="{!NOT(ISNULL(f3List))}">
+                      <apex:outputtext value="{!f3Obj}" style="font-weight : bold;"/><br />
+                          <apex:selectList value="{!f3}" size="12" id="f3"  rendered="{!NOT(ISNULL(f3List))}" styleClass="mergeFieldSelectList"> 
+                              <apex:selectOptions value="{!f3List}" />
+                              <apex:actionSupport event="onchange" action="{!level3}" rerender="leftField,mergeFieldLists,o,merge_field_output_4" status="statLoad1"/>
+                          </apex:selectList>
+                      </apex:outputpanel>
+                  </apex:pageblocksection>
+                </apex:pageBlock>
+              </apex:tab>
+              <apex:tab label="Special Merge Fields" style="font-weight:bold;">
+                <apex:pageBlock >
+                  <apex:pageblocksection columns="1">
+                      <apex:outputpanel id="specialMergeFieldPanel">
+                          <apex:outputtext value="Special Merge Field" style="font-weight : bold;"/><br />
+                          <apex:selectList value="{!specialMergeObject}" size="12" styleClass="mergeFieldSelectList"> 
+                              <apex:selectOptions value="{!specialMergeList}" />
+                                  <apex:actionSupport event="onchange" action="{!setSpecialMergeValue}" rerender="mergeFieldLists,l2,l3,o" status="statLoad4"/>
+                          </apex:selectList>
+                      </apex:outputpanel>
+                    </apex:pageblocksection>
+                </apex:pageBlock>
+              </apex:tab>
+            </apex:tabPanel>
+            <button type='button' class="pdfUploadBtn insertField" onclick="insertMergeField();" value="Insert Field" >
+              Insert Field
+            </button>
+            <button type='button' class="pdfUploadBtn cancelField" onclick="hideMergeFieldsList();" value="Cancel">
+              Cancel
+            </button>
+          </apex:form>
+        <apex:form id="leftForm" styleClass="input fileInput">
+          <apex:inputHidden id="positionXMLInput" value="{!positionXML}"/>
+          <apex:inputHidden id="inputFieldXMLInput" value="{!inputFieldXML}"/>
+          <apex:outputPanel rendered="{!AND(SSignEnabled, NOT(isOneOff))}">
+            <iframe class="iframeClass hiddenSettings" id="sstemplate-editor-iframe" src="{!URLFOR(sstemplateEditorURL, null)}" />
+          </apex:outputPanel>
+
+          <iframe class="iframeClass" id="merge_field_iframe" src="{!URLFOR(SDPDFUploadEditorURL, null)}" onload="createEventListener()" />
+          <apex:outputPanel rendered="{!SSignEnabled}">
+            <button class="pdfUploadBtn ssignSettingsBtn" id="iFrameSwitchButton" 
+                    type="button" onclick="ssignSettingsButtonHandler(this);" style="width:125px !important;">S-Sign Settings</button>
+          </apex:outputPanel>
+
+          <apex:actionFunction name="updateSML" action="{!updateSpecialMergeList}" reRender="mergeFieldLists" status="statLoad14">
+            <apex:param name="namedQueryDefinitionsParam" value="" />
+          </apex:actionFunction>
+        </apex:form>
+		</div>
+  </div>
+  
+  <div id="pages-container" style="display:inline-block;float:right;">
+    <apex:outputPanel id="uploadPDFFileOneOff">
+      <apex:outputPanel rendered="{!NOT(pdfUploadFileUploaded)}">
+        <apex:iframe id="the_iframe" src="{!URLFOR('/apex/SDFileUpload?isPDFUpload=true&pdfUploadTemplateId=' + sdt.Id + '&msxFiletype=PDF-UPLOAD&OneOff=true', null)}" />
+        
+      </apex:outputPanel>
+    </apex:outputPanel>
+    <div id='toolbar' style="width: 100%; position: sticky; top: 0; text-align:center; background-color: rgb(255, 255, 255); border: 1px solid black; z-index: 40; display: none; left: 15%;">
+      <select id="toolbar-dropdown" onchange='handleChangeSigner();' style="margin-top: 5px; margin-bottom: 5px;"><option value="null">--- Select a Signer ---</option></select>
+      <div id='draggables'></div>
+    </div>
+    <apex:form >
+      <apex:commandButton onclick="handleGenerate();" action="{!doNothing}" oncomplete="" value="Generate Contract" style="width: 135px; font-size: 0.7rem; height: 40px; z-index: 1; bottom: 1%; right: 5%; position: fixed;" rendered="{!isOneOff}" id="submit-one-off" />
+    </apex:form>
+  </div>
+  </div>
+
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jquery-1.8.3.min.js')}"/>
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'/resources/js/pdf.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'/resources/js/pdf.worker.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'/resources/js/jspdf.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__jQueryUI, '/jquery-ui-1.12.1/jquery-ui.js')}" />
+  <script type="text/javascript">
+    j$ = jQuery.noConflict();
+    hideMergeFieldsList();
+    const MIN_PAGES_FOR_UPDATE_PERCENTAGE = 10;
+    var isLargePDF = false;
+  	var globalCounter = 0;
+  	var pdfCounter = 1;
+    var currentlyDragging = false;
+    var dragAndDropLock = false;
+    var pdfString = '';
+    var idCurrenltyChoosingMergeField = '';
+    var numSigners = 0;
+    var numDropped = 0;
+    var signerProfiles = {};
+    var isOneOffBool = '{!isOneOff}'
+
+    j$( function() {
+      j$( ".resizable" ).resizable();
+      j$( ".resizable-checkbox" ).resizable({
+        aspectRatio: 1 / 1
+      });;
+      ;(function(j$) {
+      j$.fn.textfill = function(options) {
+        var fontSize = options.maxFontPixels;
+        var ourText = j$('span:visible:first', this);
+        var maxHeight = j$(this).height();
+        var maxWidth = j$(this).width();
+        var textHeight;
+        var textWidth;
+        do {
+          ourText.css('font-size', fontSize);
+          textHeight = ourText.height();
+          textWidth = ourText.width();
+          fontSize = fontSize - 1;
+        } while ((textHeight > maxHeight || textWidth > maxWidth) && fontSize > 3);
+        return this;
+      }
+    })(jQuery);
+    
+    } );
+    function resizeText() {
+      j$('.resizable').textfill({ maxFontPixels: 1000 });
+    }
+    j$(document).ready(function() {
+      resizeText();
+    });
+
+    j$( window ).on( "load", function() {
+      if ('{!pdfUploadFileUploaded}' == 'true') {
+        loadSavedFileIfExists();
+        if (isOneOffBool == 'false') {
+          j$('#pages-container').css('position','absolute');
+          j$('#SSign_Logo').hide();
+        }
+      }
+      else{
+        if (isOneOffBool == 'true') {
+          j$('#toolbar').toggle();
+          j$("[id$='submit-one-off']").hide();
+        }
+      }
+      addOnMessageHandler();
+      handleOneOff();
+    });
+
+
+    function handleOneOff() { 
+      if(isOneOffBool == 'true') {
+        j$('#loading-div').toggle();
+        j$('#profile-dropdown').toggle();
+        j$('#toolbar').toggle();
+        j$('#pages-container').css('width', '100%');
+        j$('#drop-container-wrapper').css('display', 'none');
+        j$('#submit-one-off').toggle();
+      }
+      else {
+        j$('#signers').remove();
+      }
+    }
+
+    function loadSignerProfiles() {
+      signerProfiles = getSignerProfileList();
+      j$('#toolbar-dropdown').empty();
+      j$('#toolbar-dropdown').append('<option value="null">--- Select a Signer ---</option>');
+      for (var i = 0; i < signerProfiles.length; i++) {
+        j$('#toolbar-dropdown').append('<option id="signer-option-'+ (signerProfiles[i].routingPosition + 1) +'" value="Signer-'+ (signerProfiles[i].routingPosition + 1) +'">'+ signerProfiles[i].signerName +'</option>');
+      }
+    }
+
+    function handleChangeSigner() {
+      j$('#draggables').empty();
+      if (j$('#toolbar-dropdown').val() != 'null') {
+        var color;
+        var index = j$('#toolbar-dropdown').val().slice(j$('#toolbar-dropdown').length - 1)
+        if (index === 'Signer-1') color = '#29AAE2';
+        else if (index === 'Signer-2') color = '#F79F1F'
+        else if (index === 'Signer-3') color = '#A3CB38'
+        else if (index === 'Signer-4') color = '#ED4C67'
+        else if (index === 'Signer-5') color = '#12CBC4'
+        else if (index === 'Signer-6') color = '#009432'
+        else if (index === 'Signer-7') color = '#EE5A24'
+        else if (index === 'Signer-8') color = '#6F1E51'
+
+        var signatureString = '<img class="droptarget editorDropTargetReady" draggable="true" id="input_field_' + index + '_signature" input_field_id="' + index + '_signature" style="height: 60px !important; width: auto; margin-right: 5px; background-color: white; border: 2px solid '+ color + ';" src="{!URLFOR($Resource.SDoc,'Signature_Draggable.png')}" />'
+        var $signatureString = j$(signatureString);
+        j$('#draggables').append($signatureString);
+        createEventListener($signatureString[0]);
+
+        var initialString = '<img class="droptarget editorDropTargetReady" draggable="true" id="input_field_' + index + '_initials" input_field_id="' + index + '_initials" style="height: 60px !important; width: auto; margin-right: 5px; background-color: white; border: 2px solid '+ color + ';" src="{!URLFOR($Resource.SDoc,'Initials_Draggable.png')}" />'
+        var $initialString = j$(initialString);
+        j$('#draggables').append($initialString);
+        createEventListener($initialString[0]);
+
+        var textString = '<img class="droptarget editorDropTargetReady" draggable="true" id="input_field_' + index + '_text" input_field_id="' + index + '_text" style="height: 60px !important; width:auto; margin-right: 5px; width: auto; background-color: white; border: 2px solid '+ color + ';" src="{!URLFOR($Resource.SDoc,'Text_Draggable.png')}" />'
+        var $textString = j$(textString);
+        j$('#draggables').append($textString);
+        createEventListener($textString[0]);       
+    
+        var checkboxString  = '<img class="droptarget editorDropTargetReady" draggable="true" id="input_field_' + index + '_checkbox" input_field_id="' + index + '_checkbox" style="height: 60px !important; width: auto; margin-right: 5px; background-color: white; border: 2px solid '+ color + ';" src="{!URLFOR($Resource.SDoc,'Checkbox_Draggable.png')}" />'
+        var $checkboxString = j$(checkboxString);
+        j$('#draggables').append($checkboxString);
+        createEventListener($checkboxString[0]);
+
+        var dateString = '<img class="droptarget editorDropTargetReady" draggable="true" id="input_field_' + index + '_date" input_field_id="' + index + '_date" style="height: 60px !important; margin-right: 5px; width: auto; background-color: white; border: 2px solid '+ color + ';" src="{!URLFOR($Resource.SDoc,'Date_Draggable.png')}" />'
+        var $dateString = j$(dateString);
+        j$('#draggables').append($dateString);
+        createEventListener($dateString[0]);
+      }
+    }
+
+    function updateLoadingPercentage (percentageNew) {
+      j$('#loading-div-message-percentage').text(percentageNew + '%');
+    }
+
+    function initializeLoadingPercentage() {
+      j$('#loading-div-message').show();
+      j$('#loading-div-spinner').hide();
+    }
+
+    var currentPageLoading = 0;
+    var loadingPercentagePagesStart = 0;
+    function updateLoadingPercentageForPages () {
+      if (isLargePDF) {
+        var numTimesThisFunctionIsReferencedInTheCode = 4;
+        currentPageLoading += 1 / numTimesThisFunctionIsReferencedInTheCode;
+        updateLoadingPercentage( parseInt((currentPageLoading / totalNumPages) * 100));
+      }
+    }
+
+    function ssignSettingsButtonHandler (btn) {
+      if (btn.textContent === 'S-Sign Settings') {
+        btn.textContent = 'Field Settings';
+        j$('#iFrameSwitchButton').addClass('exitSSignSettingsBtn');
+      }
+      else if (btn.textContent === 'Field Settings') {
+        btn.textContent = 'S-Sign Settings';
+        j$('#iFrameSwitchButton').removeClass('exitSSignSettingsBtn');
+      }
+
+      changeIFrameShown(btn);
+    }
+
+    function changeIFrameShown (btn) {
+      if (btn != null && btn.textContent === 'Field Settings') {
+        hideMergeFieldsIFrame();
+        showSSignIframe();
+      }
+      else {
+        hideSSignIframe();
+        showMergeFieldsIFrame();
+      }
+    }
+
+    function getInputFieldString (globalCounter, pageNumber, fieldID, leftStyle, topStyle, isSSign) {
+      var namespacePrefix = isSSign ? 'SSIGN' : 'SDOCS';
+      return '<div class="droptarget pdfDropTarget" draggable="true" id="sig' + globalCounter + '.page' + pageNumber + '" input_field_id="' + fieldID +
+             '" style="left: ' + leftStyle + 'px; top: ' + topStyle + 'px; z-index: 10; position: absolute;">' +
+             namespacePrefix + ' INPUT ID=' + fieldID + '</div>'
+    }
+
+    function loadSavedFieldsIntoDocument () {
+      var globalCounter = 0;
+      if (isOneOffBool == 'false') {
+        inputFieldsMap.forEach( function (value, key, map) {
+          var inputFieldID = key;
+          var inputField = inputFieldsMap.get(inputFieldID);
+          var pageNumber = inputField.pageNumber;
+          // This tells us that this merge field has not been dragged over yet
+          // Thus, we can cut off this process early cause we aren't going to add it
+          if (pageNumber === '0' || pageNumber > totalNumPages) {
+            return;
+          }
+          
+          var leftStyleFloat = parseFloat(inputField.leftPixels) + 9.6; //padding = 9.6px
+          var topStyleFloat = parseFloat(inputField.topPixels) + 9.6; //padding = 9.6px
+          var isSSignField = inputField.isSSignInputField;
+          var inputFieldString = getInputFieldString(globalCounter, pageNumber, inputFieldID, leftStyleFloat, topStyleFloat, isSSignField);
+          var newDivToAdd = j$(inputFieldString);
+          newDivToAdd.appendTo("#pdf-div"+pageNumber);
+
+          imgPosX = window.scrollX + document.querySelector("#page-id" + pageNumber).getBoundingClientRect().left;
+          imgPosY = window.scrollY + document.querySelector("#page-id" + pageNumber).getBoundingClientRect().top;
+          setMoveListener(globalCounter++, pageNumber, imgPosX, imgPosY);
+        });
+      }
+      return globalCounter;
+    }
+
+    //These functions need to be called since we are going to need to get a message from the SDTemplateEditor to save
+    function addOnMessageHandler() {
+      addEvent(window, 'message', receiveMessage);
+    }
+
+    function addEvent(element, event, fn) {
+      if (element == null || element == undefined) {
+        return;
+      }
+
+      if (element.addEventListener) element.addEventListener(event, fn, false);
+      else if (element.attachEvent) element.attachEvent('on' + event, fn);
+    }
+
+    var messageEvent;
+    var originalEvent = null;
+    var ssignEnabled = ('{!SSignEnabled}' === 'true');
+    function receiveMessage(event) {
+      /* Since this page has a different domain than the SDTemplateEditor page (due to different
+      managed packages having different domains), we cannot run javascript within this iframe
+      from SDTemplateEditor.page as that triggers the browser's cross-domain scripting rules.
+      To get around this we use postMessage to communicate between the two pages. 
+      This allows SDTemplateEditor to tell S-Sign to save the S-Sign Template when
+      the SDTemplateEditor Save button is clicked, and allows S-Sign to tell SDTemplateEditor to
+      save the S-Docs Tempplate once the S-Sign Template has finished saving. */
+
+      var eventData = event.data;
+      
+      if (event.data.includes('SSIGN_SAVE|') && ssignEnabled) {
+        originalEvent = event;
+        document.getElementById('sstemplate-editor-iframe').contentWindow.postMessage(event.data.split('|')[1], '{!SSignIFrameURL}');
+      } else if (event.data.includes('SSIGN_SAVE|')) {
+        eventData = event.data.split('|')[1];
+      }
+
+
+      if (eventData === 'save_pdf_upload_sent') {
+        saveData();
+        messageEvent = originalEvent != null ? originalEvent : event;
+        saveSDocsTemplate();
+      }
+      else if (eventData === 'save_pdf_upload_sent_and_close') {
+        saveData();
+        messageEvent = originalEvent != null ? originalEvent : event;
+        saveSDocsTemplateAndClose();
+      }
+      else if (eventData === 'save_pdf_upload_sent_and_preview') {
+        saveData();
+        messageEvent = originalEvent != null ? originalEvent : event;
+        saveSDocsTemplateAndPreview();
+      }
+      else if (eventData === 'save_pdf_upload_sent_and_preview_request') {
+        saveData();
+        messageEvent = originalEvent != null ? originalEvent : event;
+        saveSDocsTemplateAndPreviewRequest();
+      }
+      else if (eventData === 'save') {
+        loadSavedFileIfExists();
+        setPDFUploaded();
+        j$('#toolbar').toggle();
+        j$("[id$='submit-one-off']").show();
+      }
+      else if (eventData.includes('addDefinition{!PDF_UPLOAD_SSIGN_SPLITTER}')) {
+        document.getElementById('sstemplate-editor-iframe').contentWindow.postMessage(eventData, '{!URLFOR(SSignIFrameURL, null)}');
+      } else if (eventData.includes('removeDefinition{!PDF_UPLOAD_SSIGN_SPLITTER}')) {
+        document.getElementById('sstemplate-editor-iframe').contentWindow.postMessage(eventData, '{!URLFOR(SSignIFrameURL, null)}');
+      }
+    }
+
+    function getNamedQueryDefinitions() {
+      return j$("#merge_field_iframe").contents().find("[id*=namedQueryDefinitions]").val();
+    }
+
+    function saveSDocsTemplate() {
+      //We want to send back both an indicator that this is a message back from here
+      //As well as the positionXML and merge field information
+      var messageToSendBack = 'save_pdf_upload_ret{!PDF_UPLOAD_SPLITTER}' + j$("[id$='positionXMLInput']").val() +
+                              '{!PDF_UPLOAD_SPLITTER}' + j$("[id$='inputFieldXMLInput']").val() + 
+                              '{!PDF_UPLOAD_SPLITTER}' + getNamedQueryDefinitions();
+      messageEvent.source.postMessage(messageToSendBack, messageEvent.origin);
+    }
+
+    function saveSDocsTemplateAndClose() {
+      //We want to send back both an indicator that this is a message back from here
+      //As well as the positionXML and merge field information
+      var messageToSendBack = 'save_pdf_upload_ret_and_close{!PDF_UPLOAD_SPLITTER}' + j$("[id$='positionXMLInput']").val() +
+                              '{!PDF_UPLOAD_SPLITTER}' + j$("[id$='inputFieldXMLInput']").val() + 
+                              '{!PDF_UPLOAD_SPLITTER}' + getNamedQueryDefinitions();
+      messageEvent.source.postMessage(messageToSendBack, messageEvent.origin);
+    }
+
+    function saveSDocsTemplateAndPreview() {
+      //We want to send back both an indicator that this is a message back from here
+      //As well as the positionXML and merge field information
+      var messageToSendBack = 'save_pdf_upload_ret_and_preview{!PDF_UPLOAD_SPLITTER}' + j$("[id$='positionXMLInput']").val() +
+                              '{!PDF_UPLOAD_SPLITTER}' + j$("[id$='inputFieldXMLInput']").val() + 
+                              '{!PDF_UPLOAD_SPLITTER}' + getNamedQueryDefinitions();
+      messageEvent.source.postMessage(messageToSendBack, messageEvent.origin);
+    }
+    function saveSDocsTemplateAndPreviewRequest() {
+      //We want to send back both an indicator that this is a message back from here
+      //As well as the positionXML and merge field information
+      var messageToSendBack = 'save_pdf_upload_ret_and_preview_request{!PDF_UPLOAD_SPLITTER}' + j$("[id$='positionXMLInput']").val() +
+                              '{!PDF_UPLOAD_SPLITTER}' + j$("[id$='inputFieldXMLInput']").val() + 
+                              '{!PDF_UPLOAD_SPLITTER}' + getNamedQueryDefinitions();
+      messageEvent.source.postMessage(messageToSendBack, messageEvent.origin);
+    }
+
+    function getLoadingDiv() {
+      return j$('#loading-div');
+    }
+    function getMergeFieldsList() {
+      return j$('[id$="mergeFieldLists"]');
+    }
+    function getInputFileDiv() {
+      return j$('[id$="file_input_pdf"]');
+    }
+    function hideInputFileDiv() {
+      $inputFileDiv = getInputFileDiv();
+      $inputFileDiv.hide();
+    }
+    function hideLoadingDiv(str) {
+      $loadingDiv = getLoadingDiv();
+      $loadingDiv.hide();
+      $loadingDiv.css('opacity', '0.8');
+    }
+    function showLoadingDiv(str) {
+      $loadingDiv = getLoadingDiv();
+      $loadingDiv.css('background-color', 'white');
+      $loadingDiv.show();
+    }
+    function showMergeFieldsList() {
+      updateSML(getNamedQueryDefinitions());
+      hideSSignSettingsBtn();
+      hideMergeFieldsIFrame();
+      hideSSignIframe();
+      j$('[id*=leftForm]').addClass('whiteBackground');
+      getMergeFieldsList().show();
+    }
+    function hideMergeFieldsList() {
+      j$('[id*=leftForm]').removeClass('whiteBackground');
+      getMergeFieldsList().hide();
+      showSSignSettingsBtn();
+      changeIFrameShown(document.getElementById('iFrameSwitchButton'));
+    }
+
+    function showMergeFieldsIFrame() {
+      j$('#merge_field_iframe').removeClass('hiddenSettings');
+    }
+
+    function hideMergeFieldsIFrame() {
+      j$('#merge_field_iframe').addClass('hiddenSettings');
+    }
+
+    function showSSignIframe() {
+      j$('#sstemplate-editor-iframe').removeClass('hiddenSettings');
+    }
+
+    function hideSSignIframe() {
+      j$('#sstemplate-editor-iframe').addClass('hiddenSettings');
+    }
+
+    function showSSignSettingsBtn() {
+      j$('#iFrameSwitchButton').css('z-index', '10');
+      j$('#iFrameSwitchButton').css('visibility', 'visible');
+    }
+
+    function hideSSignSettingsBtn() {
+      j$('#iFrameSwitchButton').css('z-index', '-1000');
+      j$('#iFrameSwitchButton').css('visibility', 'hidden');
+    }
+
+    function onDeleteField(id){
+      j$( "div[input_field_id='"+id+"']" ).remove();
+    }
+
+    function drag_start(event){
+        //Mark where the cursor is when it grabs the object
+        var style = window.getComputedStyle(event.target, null);
+        event.dataTransfer.setData("text/plain",
+          (event.clientX - event.target.getBoundingClientRect().left) + ',' 
+          + (event.clientY - event.target.getBoundingClientRect().top) +
+          ',' + event.target.getAttribute("input_field_id"));
+        //Tell the actionlisteners that this element is being created 
+        currentlyDragging = true;
+    }
+
+    var $fileInputPDF = getInputFileDiv();
+		$fileInputPDF.on("change", function(evt) {
+			//Get the uploaded file
+		    var file = evt.target.files[0];
+		    //Essentially read the file
+		    var reader = new FileReader();
+			reader.readAsDataURL(file);
+			reader.onload = function () {
+				//Get the string of data from the file, then
+				//cut out the beginning which renders us
+				//just the base64 string of the file
+        showLoadingDiv('1111');
+				for(var i = 1; i < pdfCounter; ++i){
+					var oldPDF = j$("#page-id" + (i));
+				 	oldPDF.remove();
+				 	var oldDiv = j$("#pdf-div" + (i));
+				 	oldDiv.remove();
+				}
+				for(var j = 0; j < globalCounter; ++j){
+					var oldEmail = j$('#input-div' + j);
+					oldEmail.remove();
+				}
+
+				pdfCounter = 1;
+                globalCounter = 0;
+                pdfString = reader.result;
+         getText(dataURLtoFile(getB64PDFExample2(), 'pdf_test.pdf'));
+			};
+			//If there is an error, send that to the user
+			reader.onerror = function (error) {
+        hideLoadingDiv('4444');
+			 	console.log('Error: ', error);
+			};
+    });
+
+    function saveData(){
+      var sigs = j$('*[id^="sig"]');
+      var xPadding = 2;
+      var yPadding = 2;
+      var retXML = "{ ";
+      var preventFinalComma = false;
+      for (i = 0; i < sigs.length; i++) {
+        if (preventFinalComma) retXML += ", ";
+        else preventFinalComma = true;
+        id = sigs[i].id
+        var sigId = id.substr(id.lastIndexOf('sig') + 3, id.lastIndexOf('.') - (id.lastIndexOf('sig') + 3));
+        var sigFieldId = sigs.eq(i).attr('input_field_id');
+      	var page = id.substr(id.lastIndexOf('page') + 4);
+        var emailInput = j$('#input'+sigId);
+        retXML += '\"' + sigFieldId + "\" : { \"x\":\"" + (parseInt(sigs[i].style.left) + xPadding) + "\", " +
+                          "\"y\":\"" + (parseInt(sigs[i].style.top) + yPadding) + "\", " +
+                          "\"pageNumber\":\"" + page + "\" }";
+      }
+      retXML += " }";
+      j$("[id$='positionXMLInput']").val(retXML);
+      j$("[id$='inputFieldXMLInput']").val(putInputValuesInXML('field'));
+    }
+    var remotingConfig = { buffer: false, escape: true, timeout: 30000 };
+
+    function getSignerProfileXML() {
+      signerProfiles = getSignerProfileList();
+      var signerProfileXml = '<SignerProfiles>'
+      for (var i = 0; i < signerProfiles.length; i++) {
+        signerProfileXml += '<SignerProfile id="' + (i + 1) + '"><ProfileName>Signer ' + (i + 1) + '</ProfileName>'
+                          + '<Email>' + signerProfiles[i].signerEmail+ '</Email><SignerName>' + signerProfiles[i].signerName +
+                          '</SignerName><RoutingPosition>' + signerProfiles[i].routingPosition + '</RoutingPosition><DenyAudit>false</DenyAudit><DenyConfirmation>false</DenyConfirmation>' +
+                          '<PrevSignerProvidesThisSignersEmail></PrevSignerProvidesThisSignersEmail><OmitSignerProfile></OmitSignerProfile></SignerProfile>'
+      }
+      signerProfileXml += '</SignerProfiles>'
+      return signerProfileXml;
+    }
+
+    function getInputFieldXML() {
+      var inputFieldXml = '<InputFields>'
+      for(var j = 0; j < numDropped; j++) {
+        inputFieldXml += '<InputField id="' + j + '"><Type>' 
+        if(j$('.dropped-' + j).attr('input_field_id').includes('_text')) {
+          inputFieldXml += 'ssignField</Type><Profile>Signer ' +  j$('.dropped-' + j).attr('input_field_id').charAt(7) + 
+                            '</Profile><Required>false</Required><WriteTo></WriteTo><DefaultValue></DefaultValue><TextHeight></TextHeight><TextWidth></TextWidth><AdditionalStyle></AdditionalStyle><MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+        else if(j$('.dropped-' + j).attr('input_field_id').includes('_signature')) {
+          inputFieldXml += 'ssignField</Type><Profile>Signer ' +  j$('.dropped-' + j).attr('input_field_id').charAt(7) + 
+                            '</Profile><MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+        else if(j$('.dropped-' + j).attr('input_field_id').includes('_checkbox')) {
+          inputFieldXml += 'ssignField</Type><Profile>Signer '+ j$('.dropped-' + j).attr('input_field_id').charAt(7) + '</Profile><Required>true</Required><WriteTo></WriteTo><DefaultValue>false</DefaultValue><MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+        else if(j$('.dropped-' + j).attr('input_field_id').includes('_date')) {
+          inputFieldXml += 'ssignField</Type><Profile>Signer '+ j$('.dropped-' + j).attr('input_field_id').charAt(7) + '</Profile><Required>true</Required><WriteTo></WriteTo><DefaultValue>false</DefaultValue><Disabled>false</Disabled><DateFormat>mm/dd/yyyy</DateFormat><MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+        else if(j$('.dropped-' + j).attr('input_field_id').includes('_initials')) {
+          inputFieldXml += 'ssignField</Type><Profile>Signer '+ j$('.dropped-' + j).attr('input_field_id').charAt(7) + '</Profile><Required>true</Required><WriteTo></WriteTo><MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+      }
+      inputFieldXml += '</InputFields>'
+      return inputFieldXml;
+    }
+
+    function getSSignInputFieldXML() {
+      var ssignInputFieldXml = '<InputFields>'
+      for(var j = 0; j < numDropped; j++) {
+        var additionalStyleString = "<AdditionalStyle>height:" + 
+                          (parseInt((j$('.dropped-' + j).css('height')))) + "px;";
+        if (!(j$('.dropped-' + j).attr('input_field_id').includes('_signature') || j$('.dropped-' + j).attr('input_field_id').includes('_initials'))) {
+          additionalStyleString += "width:" + (parseInt((j$('.dropped-' + j).css('width')))) + "px;"; 
+        }
+        additionalStyleString += "</AdditionalStyle>"; 
+        ssignInputFieldXml += '<InputField id="' + j + '"><Type>' 
+        if(j$('.dropped-' + j).attr('input_field_id').includes('_text')) {
+          ssignInputFieldXml += 'text</Type><Profile>Signer ' +  j$('.dropped-' + j).attr('input_field_id').charAt(7) + 
+                            '</Profile><Required>false</Required><WriteTo></WriteTo><DefaultValue></DefaultValue><TextHeight></TextHeight><TextWidth></TextWidth>' + additionalStyleString + '<MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+        else if(j$('.dropped-' + j).attr('input_field_id').includes('_signature')) {
+          ssignInputFieldXml += 'signature</Type><Profile>Signer ' +  j$('.dropped-' + j).attr('input_field_id').charAt(7) + 
+                            '</Profile><MergeFieldStyle></MergeFieldStyle>' + additionalStyleString + '<MergeFieldRender></MergeFieldRender></InputField>'
+        }
+        else if(j$('.dropped-' + j).attr('input_field_id').includes('_checkbox')) {
+          ssignInputFieldXml += 'checkbox</Type><Profile>Signer '+ j$('.dropped-' + j).attr('input_field_id').charAt(7) + '</Profile><Required>true</Required><WriteTo></WriteTo><DefaultValue>false</DefaultValue>' + additionalStyleString + '<MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+        else if(j$('.dropped-' + j).attr('input_field_id').includes('_date')) {
+          ssignInputFieldXml += 'date</Type><Profile>Signer '+ j$('.dropped-' + j).attr('input_field_id').charAt(7) + '</Profile><Required>true</Required><WriteTo></WriteTo><DefaultValue>false</DefaultValue><Disabled>false</Disabled><DateFormat>mm/dd/yyyy</DateFormat>' + additionalStyleString + '<MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+        else if(j$('.dropped-' + j).attr('input_field_id').includes('_initials')) {
+          ssignInputFieldXml += 'initials</Type><Profile>Signer '+ j$('.dropped-' + j).attr('input_field_id').charAt(7) + '</Profile><Required>true</Required><WriteTo></WriteTo><DefaultValue>false</DefaultValue>' + additionalStyleString + '<MergeFieldStyle></MergeFieldStyle><MergeFieldRender></MergeFieldRender></InputField>'
+        }
+      }
+      ssignInputFieldXml += '</InputFields>'
+      return ssignInputFieldXml;
+    }
+
+    function getPositionXML() {
+      positionXml = '{';
+      var preventFinalComma = false;
+      for(var k = 0; k < numDropped; k++){
+        if (preventFinalComma) positionXml += ", ";
+        else preventFinalComma = true;
+        var id = j$('.dropped-' + k).attr('id');
+        var page = id.substr(id.lastIndexOf('page') + 4);
+        positionXml += '\"' + k + "\" : { \"x\":\"" + (parseInt((j$('.dropped-' + k).css('left'))) + 2) + "\", " +
+                          "\"y\":\"" + (parseInt((j$('.dropped-' + k).css('top'))) + 2) + "\", " + 
+                          "\"pageNumber\":\"" + page + "\" }";
+      }
+      positionXml += '}'
+      return positionXml;
+    }
+
+    function savePDFUploadOneOff(signerProfileXml, inputFieldXml, ssignInputFieldXml, positionXml) {
+      var imgSrcList = [];
+      var imgIds = [];
+      var imgs = document.getElementById('pages-container').getElementsByClassName("page-image");
+      for (var i = 0; i < imgs.length; i++) {
+        //We only want the blob, not all the data:img/png(etc.) stuff
+        imgSrcList.push(imgs[i].src.split(',')[1]);
+      }
+      j$('#loading-div').toggle();
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.SDPDFUploadController.createOneOffSSTemplate}',
+        signerProfileXml,
+        ssignInputFieldXml,
+        '{!sdt.Id}',
+        '{!isOneOff}',
+        function (result, event) {
+          if (event.status) {
+            Visualforce.remoting.Manager.invokeAction(
+              '{!$RemoteAction.SDPDFUploadController.step1SaveOneOff}',
+              '{!sdt.Id}',
+              imgSrcList.length,
+              function (result, event) {
+                if (event.status) {
+                  var allPagesExist = result;
+                  for(var j = 1; j <= imgSrcList.length; j++){
+                    var imgContents = allPagesExist ? '' : imgSrcList[j-1];
+                    Visualforce.remoting.Manager.invokeAction(
+                      '{!$RemoteAction.SDPDFUploadController.step2SaveOneOff}',
+                      imgContents,
+                      j,
+                      '{!sdt.Id}',
+                      allPagesExist,
+                      function (result, event) {
+                        if (event.status) { 
+                          var pageNumber = result.split('|')[0];
+                          var imgId = result.split('|')[1];
+                          imgIds.push(imgId);
+                          if (imgIds.length === imgSrcList.length) {
+                            if (!allPagesExist) {
+                              console.log('Successfully uploaded all ' + imgSrcList.length + ' page(s)!');
+                            }
+                            Visualforce.remoting.Manager.invokeAction(
+                              '{!$RemoteAction.SDPDFUploadController.step3SaveOneOff}',
+                              inputFieldXml,
+                              positionXml,
+                              '{!sdt.Id}',
+                              function (result, event) {
+                                if (event.status) {
+                                  console.log('success!');
+                                  createSDocOneOff();
+                                }
+                              }, remotingConfig
+                            );
+                          } 
+                        } 
+                        else {
+                          alert('Error while saving uploaded PDF - (Step 2): ' + event.message);
+                          hideLoadingDiv();
+                        }
+                      }, remotingConfig
+                    );
+                  } 
+                } 
+                else {
+                  alert('Error while saving uploaded PDF - (Step 1): ' + event.message);
+                  hideLoadingDiv();
+                }
+              }, remotingConfig
+            );
+          }
+        }, remotingConfig
+      );
+    }
+
+    function handleGenerate() {
+      var signerProfileXml = getSignerProfileXML();
+      var inputFieldXml = getInputFieldXML();
+      var ssignInputFieldXml = getSSignInputFieldXML();
+      var positionXml = getPositionXML();
+      
+      savePDFUploadOneOff(signerProfileXml, inputFieldXml, ssignInputFieldXml, positionXml);
+    }
+
+    function removeDroppedField(dropNum) {
+      j$('.dropped-' + dropNum).remove();
+    }
+
+    function drag_enter(e) {
+      e.preventDefault();
+    }
+
+    function drag_over(e) {
+      e.preventDefault();
+    }
+
+    j$(document.body).bind('dragover', function(e) {
+        e.preventDefault();
+    });
+
+    j$(document.body).bind('dragenter', function(e) {
+        e.preventDefault();
+    });
+
+    document.addEventListener('drop', function(event) {
+        event.preventDefault();
+        if ( event.target.className == "page-image" && currentlyDragging) {
+            event.target.style.border = "";
+            var dataTransfer = event.dataTransfer.getData("text/plain").split(',');
+            var mouseOffsetX = parseInt(dataTransfer[0],10);
+            var mouseOffsetY = parseInt(dataTransfer[1],10);
+            var divGrabbedId = dataTransfer[2];
+            eventId = event.target.id;
+            var pageNum = eventId.substr(eventId.lastIndexOf('id')+2);
+            var divGrabbed = j$("#merge_field_iframe").contents().find("#input_field_"+divGrabbedId).clone();
+            if(isOneOffBool == 'true'){
+              divGrabbed = j$("#input_field_"+divGrabbedId).clone();
+              var splitInputFieldId = divGrabbed.attr("input_field_id").split('_');
+              var signerIndex = splitInputFieldId[0].split('-')[1] - 1;
+              var divToDrop;
+              var signerNameText = signerProfiles[signerIndex].signerName;
+              if (divGrabbed.attr('input_field_id').includes('text')) {
+                divToDrop = '<div><span> Text for ' + signerNameText + '</span></div>'; 
+                divGrabbed.css('width', '200px');
+                divGrabbed.css('height', '25px');
+                divGrabbed.css('border', '1px solid black');
+                divGrabbed.css('border-radius', '0');
+              }
+              else if (divGrabbed.attr('input_field_id').includes('date')) {
+                divToDrop = '<div><span> Date for ' + signerNameText + '</span></div>'; 
+                divGrabbed.css('width', '200px');
+                divGrabbed.css('height', '25px');
+                divGrabbed.css('border', '1px solid black');
+                divGrabbed.css('border-radius', '0');
+              }
+              else if (divGrabbed.attr('input_field_id').includes('checkbox')) {
+                divToDrop = '<div></div>'; 
+                divGrabbed.css('width', '20px');
+                divGrabbed.css('height', '20px');
+                divGrabbed.css('border', '1px solid black');
+                divGrabbed.css('border-radius', '0');
+              }
+              else if (divGrabbed.attr('input_field_id').include('signature')) {
+                divToDrop = '<div>Sample Signature</div>'
+                divGrabbed.css('width', '200px');
+                divGrabbed.css('height', '30px');
+                divGrabbed.css('font-size', '16px');
+                divGrabbed.css('font-family', 'Great Vibes');
+              }
+              else if (divGrabbed.attr('input_field_id').include('initials')) {
+                divToDrop = '<div>Sample Initials</div>'
+                divGrabbed.css('width', '200px');
+                divGrabbed.css('height', '30px');
+                divGrabbed.css('font-size', '16px');
+                divGrabbed.css('font-family', 'Great Vibes');
+              }
+              var $divToDrop = j$(divToDrop);
+                $divToDrop.attr('class', divGrabbed.attr('class'));
+                $divToDrop.attr('id', divGrabbed.attr('id'));
+                $divToDrop.attr('input_field_id', divGrabbed.attr('input_field_id'));
+                $divToDrop.attr('draggable', divGrabbed.attr('draggable'));
+                $divToDrop.attr('style', divGrabbed.attr('style'));
+                $divToDrop.css('color', 'black');
+                $divToDrop.disabled = true;
+                //$divToDrop.attr('disabled', 'true');
+                if ($divToDrop.attr('input_field_id').includes('checkbox')) {
+                  $divToDrop.addClass('resizable-checkbox');
+                }
+                else {
+                  $divToDrop.addClass('resizable');
+                }
+                
+                divGrabbed = $divToDrop;
+            }
+            var img = j$("#" + event.target.id);
+            imgPosX = window.scrollX + document.querySelector("#" + event.target.id).getBoundingClientRect().left;
+            imgPosY = window.scrollY + document.querySelector("#" + event.target.id).getBoundingClientRect().top;
+            padding = 9.6; //Fix, shouldn't be constant!
+            //Left = X value of where event occured - X value of image top left corner + padding of image's container - mouse Offset X value
+            //Top very similar but Y values
+            divGrabbed.css('left', event.pageX - imgPosX + padding - mouseOffsetX);
+            divGrabbed.css('top', event.pageY - imgPosY + padding - mouseOffsetY);
+            divGrabbed.attr("id", "sig"+globalCounter+".page"+pageNum);
+            divGrabbed.css('z-index', 10);
+            divGrabbed.css('position', 'absolute');
+
+            divGrabbed.removeClass('editorDropTargetReady');
+            divGrabbed.addClass('pdfDropTarget');
+            if (isOneOffBool == 'true') {
+              divGrabbed.addClass('dropped-' + numDropped);
+              var removeButton = "<div id='dropped-" + numDropped + "-cancel' onclick='removeDroppedField(" + numDropped + ");' style='position: absolute; top: 0; left: 0; z-index: 20; font-size: 16px; font-family:Verdana, Geneva, Tahoma, sans-serif; margin-left: -15px;'>X</div>";
+              var $removeButton = j$(removeButton);
+              $removeButton.appendTo(divGrabbed);
+              
+              
+              numDropped++;
+            }
+
+            //We want to grab any default style that exists before dropping it on the page
+            /*var currentStyle = divGrabbed.attr("style");
+            var defaultMergeFieldStyle = j$("#merge_field_iframe").contents().find('[id$="defaultMergeFieldStyle"]').val();
+            divGrabbed.attr("style", defaultMergeFieldStyle + currentStyle);
+            console.log("HEY YO: " + currentStyle + "|" + defaultMergeFieldStyle);*/
+            divGrabbed.appendTo("#pdf-div"+pageNum);
+            if (isOneOffBool == 'true') {
+              j$( ".resizable" ).resizable(); 
+              j$( ".resizable-checkbox" ).resizable({
+                  aspectRatio: 1 / 1
+                });
+            }
+            
+            //var newDiv = j$('<div class="newEmail" id="input-div'+globalCounter+'"><p><strong>S-Sign Field'+globalCounter+':</strong></p><p>Email: <input class="emailInput" id="input'+ globalCounter +'" /></p></div>');
+            //newDiv.appendTo('.drop-container');
+            setMoveListener(globalCounter, pageNum, imgPosX, imgPosY);
+            globalCounter = globalCounter + 1;
+            var iframeDivGrabbed = j$("#merge_field_iframe").contents().find("#input_field_"+divGrabbedId);
+            iframeDivGrabbed.removeClass('editorDropTargetReady');
+            iframeDivGrabbed.addClass('editorDropTargetPlaced');
+            iframeDivGrabbed.css('border', 'none');
+
+            var reDragBtn = j$("#merge_field_iframe").contents().find("#reDragBtn_"+divGrabbedId);
+            reDragBtn.removeClass('reDragFieldHidden');
+            reDragBtn.addClass('reDragFieldVisible');
+            
+        }
+        currentlyDragging = false;
+    });
+
+    async function getText(file) {
+      fileReader = new FileReader();
+      fileReader.readAsArrayBuffer(file);
+      fileReader.onload = function(ev) {
+        //console.log(ev);
+        var pdf = PDFJS.getDocument(fileReader.result);
+        return pdf.then(
+          function getPdf(pdf) {
+            pdfGetPageHelperNew(pdf);
+          }, function(error){
+            hideLoadingDiv('5555');
+            console.log(error);
+          }
+        );
+      };
+    }
+    // waiting on getText to finish completion, or error
+
+    function pdfGetPageHelper(pdf, pageNum, isLast) {
+      pdf.getPage(pageNum).then(function getPageHelloWorld(page) {
+        renderPDF(page, pageNum, isLast);
+      });
+    }
+
+    function setHeight(pageNum){
+    	var pageContainer = j$("#pages-container");
+    	var dropContainerWrapper = j$("#drop-container-wrapper");
+ 	  	pageContainer.css('height', ((pageNum) * (parseFloat({!sdt.MS_Page_Height__c}) + 0.2)) + 'in');
+      if (isOneOffBool == 'true') {
+        pageContainer.css('height', ((pageNum)*1095.2 + 20)+'px');
+      }
+ 	  	dropContainerWrapper.css('height', ((pageNum) * (parseFloat({!sdt.MS_Page_Height__c}) + 0.2)) + 'in')
+    }
+
+    function renderPDF(page, pageNum, isLast) {
+      var scale = 1.0;
+      var viewport = page.getViewport(scale);
+      //
+      // Prepare canvas using PDF page dimensions
+      //
+      var canvas = document.createElement('canvas');
+      var context = canvas.getContext('2d');
+
+      // Later on maybe create canvas elements via JS and set their width's based
+      // on the document's actual page width
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      //
+      // Render PDF page into canvas context
+      //
+      var task = page.render({canvasContext: context, viewport: viewport})
+      task.promise.then(function(){
+        pdfRenderThen(page, pageNum, canvas, isLast);
+      });
+    }
+
+    function pdfRenderThen(page, pageNum, canvas, isLast) {
+      var pageImageDataURL = canvas.toDataURL('image/png');    
+      var pageContainer = j$('<div class="page-container" id="pdf-div'+pdfCounter+'">');
+      pageContainer.appendTo('#pages-container');
+      var imgPage = j$('<img class="page-image" id="page-id'+pdfCounter+'">');
+      pdfCounter = pdfCounter + 1;
+      imgPage.attr('src', pageImageDataURL);
+      imgPage.appendTo(pageContainer);
+      if(isLast){
+      	setHeight(pageNum);
+      }
+    }
+
+  var totalNumPages = 0;
+	function pdfGetPageHelperNew(pdf) {
+	  totalNumPages = pdf.pdfInfo.numPages;
+    if (totalNumPages >= MIN_PAGES_FOR_UPDATE_PERCENTAGE) {
+      isLargePDF = true;
+      initializeLoadingPercentage();
+    }
+	  var iteratePagesPromises = []; // collecting all page promises
+	  for (var j = 1; j <= totalNumPages; j++) {
+	    var page = pdf.getPage(j);
+
+	    var pagesData = [];
+	    iteratePagesPromises.push(page.then(function(page) { // add page promise
+
+	      // Increase this to increase the resolution of the PDF page images
+	      var scale = 2.5;
+
+	      var viewport = page.getViewport(scale);
+
+	      // Prepare canvas using PDF page dimensions
+	      var canvas = document.createElement('canvas');
+	      var context = canvas.getContext('2d');
+
+	      // Later on maybe create canvas elements via JS and set their width's based
+	      // on the document's actual page width
+	      canvas.height = viewport.height;
+	      canvas.width = viewport.width;
+
+	      // Render PDF page into canvas context
+        updateLoadingPercentageForPages();
+	      var task = page.render({canvasContext: context, viewport: viewport})
+        updateLoadingPercentageForPages();
+	      return task.promise.then(function(){
+	        var pageImageDataURL = canvas.toDataURL('image/png');
+          updateLoadingPercentageForPages();
+	        pagesData[page.pageIndex + 1] = {"page" : page, "pageImageDataURL" : pageImageDataURL};
+          updateLoadingPercentageForPages();
+	      });
+	    }));
+	  }
+
+	  /* Getting a PDF page is asynchronous. Creating a canvas and placing a PDF page on it in
+	  order to convert that page to an image is also asynchronous. Hence, we do all of that above
+	  and, for each PDF page, we store the pdf.js page object and the pageImageDataURL in an object
+	  at the (page_number+1)-th index of the pagesData array. We then use Promise.all in order to operate
+	  on this array once all asynchronous operations have completed. The main two operations are
+	  1) add PDF page image to DOM in the correct spot, and 2) find location of [[[SIGNATURE]]] 
+	  and overlay SIGN HERE image on top of it */
+	  Promise.all(iteratePagesPromises).then(function() {
+	    
+	    for (var j = 1; j <= totalNumPages; j++) {
+	      var page = pagesData[j]["page"];
+	      var pageImageDataURL = pagesData[j]["pageImageDataURL"];
+
+	      var pageContainer = j$('<div class="page-container" id="pdf-div'+pdfCounter+'">');
+		  pageContainer.appendTo('#pages-container');
+		  var imgPage = j$('<img class="page-image" id="page-id'+pdfCounter+'">');
+		  pdfCounter = pdfCounter + 1;
+	      imgPage.attr('src', pageImageDataURL);
+	      imgPage.appendTo(pageContainer);
+
+	      if(j === totalNumPages){
+          setHeight(totalNumPages);
+          var globalCounter = loadSavedFieldsIntoDocument(); //Load the saved fields now that all these pages have been loaded
+          hideLoadingDiv('66666');
+          hideInputFileDiv();
+          showMergeFieldsIFrame();
+          showSSignSettingsBtn();
+		    }
+	    }
+	  });
+	}
+
+    // Source: https://stackoverflow.com/questions/35940290/how-to-convert-base64-string-to-javascript-file-object-like-as-from-file-input-f
+    function dataURLtoFile(dataurl, filename) {
+      var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+      while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new File([u8arr], filename, {type:mime});
+    }
+
+    function getB64PDFExample2() {
+      return pdfString;
+    }
+
+    function createEventListener(draggableDoc) {
+      draggableDoc.addEventListener('dragstart',drag_start,false);
+      draggableDoc.addEventListener('dragenter',drag_enter,false);
+      draggableDoc.addEventListener('dragover',drag_over,false);
+    }
+
+    function setMoveListener(globalCounter, pageNum, imgPosX, imgPosY) {
+      j$('[id^=sig'+globalCounter+']').on('mousedown', function (e) {     
+          j$(this).addClass('active');
+          var originalThis = j$(this);
+          let oTop = e.pageY - j$('.active').offset().top;
+          let oLeft = e.pageX - j$('.active').offset().left;
+          
+          
+
+          j$(this).parents().on('mousemove', function (e) {
+            if (!originalThis.attr('class').includes('ui-resizable-resizing')) {
+              
+              j$('.active').offset({ 
+                  //imgPosY + pageHeight - divHeight 
+                  //imgPosX + pageWidth - divWidth
+                  top: Math.max(Math.min(imgPosY + PDF_HEIGHT - (DROPTARGET_HEIGHT - DROPTARGET_HEIGHT_SPILLOVER), e.pageY - oTop), imgPosY),
+                  left: Math.max(Math.min(imgPosX + PDF_WIDTH - (DROPTARGET_WIDTH - DROPTARGET_WIDTH_SPILLOVER), e.pageX - oLeft), imgPosX)
+
+              }).on('mouseup', function () {
+                  
+                  j$(this).removeClass('active');
+                  j$(this).parents().off('mousemove');
+                 
+                 
+              });
+            }
+          });
+          
+          return false;    
+       
+      });
+
+      j$('[id^=sig'+globalCounter+']').on('mouseup', function (e) {
+          j$(this).removeClass('active');
+          if (isOneOffBool == 'true') {
+            j$(this).parent().removeClass('active');
+          }
+          return false;
+      });
+    }
+
+    j$(document).mouseup(function() {
+      j$('[id^=sig]').removeClass('active');
+    });
+
+    function populateFieldValues () {
+      var type = 'field';
+      var defaultMergeFieldStyle = j$("#merge_field_iframe").contents().find('[id$="defaultMergeFieldStyle"]').val();
+
+      var sigs = j$('*[id^="sig"]');
+      var xPadding = 2;
+      var yPadding = 2;
+      for (i = 0; i < sigs.length; i++) {
+        var id = sigs[i].id;
+        var sigFieldId = sigs.eq(i).attr('input_field_id');
+      	var page = id.substr(id.lastIndexOf('page') + 4);
+        var inputField = inputFieldsMap.get(sigFieldId);
+        inputField.leftPixels = "" + (parseInt(sigs[i].style.left) + xPadding);
+        inputField.topPixels = "" + (parseInt(sigs[i].style.top) + yPadding);
+        inputField.pageNumber = page;
+      }
+
+      inputFieldsMap.forEach( function (value, key, map) {
+        var inputFieldID = key;
+        var inputField = inputFieldsMap.get(inputFieldID);
+        var mergeFieldRender = j$("#merge_field_iframe").contents()
+                               .find('#merge-field-render-input-' + inputFieldID).val();
+        if (mergeFieldRender !== undefined && mergeFieldRender !== null) {
+          mergeFieldRender = mergeFieldRender.replace(/"/g,'\'');
+        }
+        inputField.additionalStyle = j$("#merge_field_iframe").contents()
+                                     .find('#merge-field-style-input-' + inputFieldID).val();;
+        inputField.defaultStyle = defaultMergeFieldStyle;
+        inputField.isSSignInputField = j$('#pdf-upload-field-type-' + inputFieldID).val() === 'ssignField';
+        inputField.mergeFieldRender = mergeFieldRender;
+        inputField.mergeFieldValue = j$("#merge_field_iframe").contents()
+                                     .find('#merge-field-input-' + inputFieldID).val();
+      });
+    }
+
+    function putInputValuesInXML(type) {
+      var xml = '';
+      xml += '<' + getTagNameForXML(type) + 's>';
+      //I would make this a function but JavaScript won't iterate idsToAdd then
+      //BUT, this essentially grabs all ids that exist in the current state
+      //So lets say you delete Signer Profile ID 1, you would get a Set of ['2']
+      var idsToAdd = new Set();
+      if(type === 'field'){
+        //Input Fields Ids
+        var jQueryNumItems = '[class^="pdf-upload-' + type + '-"][class$="-input"]';
+        var numItems = j$("#merge_field_iframe").contents().find(jQueryNumItems).length;
+        //We want a Set because we only want unique ids
+        j$("#merge_field_iframe").contents().find(jQueryNumItems).each(function() {
+          //If this has the string '-input profile-options-picklist'
+          //we want to edit it. Yee haw.
+          var cls = j$(this).attr('class');
+          if(cls.includes('-input profile-options-picklist')){
+            cls = cls.replace('pdf-upload-' + type + '-','');
+            cls = cls.replace('-input profile-options-picklist','');
+            idsToAdd.add(cls);
+          }
+          else if(cls.includes('-input')){
+            cls = cls.replace('pdf-upload-' + type + '-','');
+            cls = cls.replace('-input','');
+            idsToAdd.add(cls);
+          }
+        });
+      }
+
+      //idsToAdd are all the ids we found for either type
+      //WHICH MEANS that you can delete these fields or profiles
+      //without fear of it not being included in the final additions
+      //****NOTE: May be a bug that I just fixed for this in SSTemplateEditor.page @Zach
+      for (let id of idsToAdd) {
+        var xmlInner = '<' + getTagNameForXML(type) + ' id="' + id + '">';
+        var elementsFound = false;
+        //This line has been changed to account for the fact
+        //that we are pulling from the iframe
+        j$("#merge_field_iframe").contents().find('.pdf-upload-' + type + '-' + id + '-input').each(function() {
+          var valToWrite = '';
+          if (this.type === 'checkbox') {
+            if (this.checked !== undefined && this.checked !== null)
+              valToWrite = this.checked;
+          } else if (j$(this).attr('name') === 'MergeField') { 
+            var mergeField = j$("#merge_field_iframe").contents().find('#merge-field-input-' + id).val();
+            if (mergeField !== undefined && mergeField !== null)
+              valToWrite = mergeField;
+          } else if (j$(this).attr('name') === 'MergeFieldStyle') {
+            //We want to grab the default style, unless they have set specific style for this specific
+            //merge field
+            var defaultMergeFieldStyle = j$("#merge_field_iframe").contents().find('[id$="defaultMergeFieldStyle"]').val();
+            var additionalMergeFieldStyle = j$("#merge_field_iframe").contents().find('#merge-field-style-input-' + id).val();
+            //You can override styles if you put them at the end of a style=""
+            //So, this will give all the default styles, as well as any additional styles (override or not)'
+            //for this specific merge field tag.
+            if (defaultMergeFieldStyle === undefined && defaultMergeFieldStyle === null)
+              defaultMergeFieldStyle = '';
+            if (additionalMergeFieldStyle === undefined && additionalMergeFieldStyle === null)
+              additionalMergeFieldStyle = '';
+            
+            valToWrite = defaultMergeFieldStyle + '|-+-|' + additionalMergeFieldStyle;
+          } else if (j$(this).attr('name') === 'MergeFieldRender') {
+            var mergeFieldRender = j$("#merge_field_iframe").contents().find('#merge-field-render-input-' + id).val();
+            if (mergeFieldRender !== undefined && mergeFieldRender !== null)
+              valToWrite = mergeFieldRender.replace(/"/g,'\'');
+          } else {
+            var thisVal = j$(this).val();
+            if (thisVal !== undefined && thisVal !== null)
+              valToWrite = thisVal;
+          }
+          
+          xmlInner += wrapInXMLTags(j$(this).attr('name'), valToWrite);
+          elementsFound = true;
+        });
+        xmlInner += '</' + getTagNameForXML(type) + '>';
+        if (elementsFound) xml += xmlInner;
+      }
+      xml += '</' + getTagNameForXML(type) + 's>';
+      return xml;
+    }
+
+    function getTagNameForXML(type) {
+      if (type === 'profile') return 'SignerProfile';
+      else if (type === 'field') return 'InputField';
+      else return 'BAD TYPE';
+    }
+
+    function wrapInXMLTags(tagName, val) {
+      return '<' + tagName + '>' + val + '</' + tagName + '>';
+    }
+
+    //This will grab the tag that has been placed for that field and remove it
+    //This is the function called when Delete Field is pressed
+    function removeInputFieldFromDocument (idToRemove) {
+      j$("div[input_field_id='" + idToRemove + "']").remove();
+    }
+
+    function insertMergeField() {
+      var mergeField = j$("[id$='outputMergeField']").val();
+      j$("#merge_field_iframe").contents().find('#merge-field-input-' + idCurrenltyChoosingMergeField).val(mergeField);
+      idCurrenltyChoosingMergeField = '';
+      hideMergeFieldsList();
+    }
+
+    function showMergeFields(id) {
+      idCurrenltyChoosingMergeField = id;
+      showMergeFieldsList();
+    }
+  </script>
+</apex:outputPanel>
+<!-- START EDITOR DIVIDE -->
+<apex:outputPanel rendered="{!JSENCODE($CurrentPage.parameters.editor)=='true'}" layout="none">
+
+  <apex:outputPanel rendered="{!showLightningUI}" layout="none">
+    <style>
+      .editorDropTargetReady {
+        height: 19px;
+        width: 139px;
+        padding: 0 !important;
+      }
+
+      a[name="skiplink"] {
+        display: none;
+      }
+    </style>
+    <apex:slds />
+  </apex:outputPanel>
+
+<style type="text/css">
+
+  /* TEMP STYLE FOR EDITOR PANEL */
+  .definition-table-separator {
+    border-bottom: 1px solid #D4DADC;
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+  /* Style the tab */
+  div.customTab {
+      overflow: hidden;
+      background-color: #F0F0F0;
+  }
+  
+  /* Style the buttons inside the tab */
+  div.tablinks {
+      float: left;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      transition: 0.3s;
+      font-weight: bold;
+      border-bottom: 1px solid #D4DADC;
+      border-right: 1px solid #D4DADC;
+  }
+  
+  /* Create an active/current tablink class */
+  div.tablinks.active {
+    background-color: #ffffff;
+    border-bottom: 1px solid white;
+  }
+  
+  /* Style the tab content */
+  .tabcontent {
+      display: none;
+      padding: 6px 12px;
+  }
+  
+  button {
+    cursor: pointer;
+  }
+  </style>
+
+<div class="customTab">
+  <div class="tablinks initial-tabs" onclick="openTab(event, 'pdf-upload-field-tab')">PDF-Upload Fields</div>
+  <div class="tablinks" onclick="openTab(event, 'pdf-upload-template-tab')">PDF-Upload Settings</div>
+</div>
+
+<div id="pdf-upload-field-tab" class="tabcontent">
+  <div id="pdf-upload-field-tables-container"></div>
+  <button class="pdfUploadBtn createField" onclick="addNewDefinition('field');">Create Another Field</button>
+</div>
+
+ <div id="pdf-upload-template-tab" class="tabcontent">
+  <apex:outputPanel id="sdt-settings">
+    <script>
+    </script>
+  </apex:outputPanel>
+
+  <apex:form style="background:none;">
+    <apex:inputHidden id="templateXMLString" value="{!templateXMLString}"/>
+    <apex:outputPanel styleClass="pdfUploadSettingsTab" layout="block">
+      <apex:pageBlock >
+        <apex:pageBlockSection >
+          <apex:pageBlockSectionItem labelStyle="width:50%;">	
+            <apex:outputLabel value="Default Merge Field Style" id="defaultMergeFieldStyleLabel" style="" />	
+            <apex:inputTextArea id="defaultMergeFieldStyle" style="height:70px;width:140px;"/>	
+          </apex:pageBlockSectionItem>
+          <br />
+          <apex:pageBlockSectionItem labelStyle="width:50%;">	
+            <apex:outputLabel value="Named Queries" id="defaultMergeFieldStyleLabel" style="" />	
+            <apex:inputTextArea id="namedQueryDefinitions" value="{!namedQueryDefinitions}" style="height:70px;width:140px;"/>
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+      </apex:pageBlock>
+    </apex:outputPanel>
+  </apex:form>
+</div>
+
+
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jquery-1.8.3.min.js')}"/>
+<script>
+j$ = jQuery.noConflict();
+
+j$(window).on('load', function() {
+  initializeTabs();
+  loadSavedFieldsIntoEditor();
+});
+
+function loadSavedFieldsIntoEditor () {
+  var defaultStyle = '';
+  inputFieldsMap.forEach( function (value, key, map) {
+    var inputFieldID = key;
+    var inputField = inputFieldsMap.get(inputFieldID);
+    var isSSignField = inputField.isSSignInputField;
+    addNewDefinition('field', inputFieldID);
+    var iframeDivAdded = j$("#input_field_" + inputFieldID);
+    if (isSSignField) {
+      j$('#pdf-upload-field-type-' + inputFieldID).val('ssignField');
+      modifyFieldDefinitionRows(j$('#pdf-upload-field-type-' + inputFieldID));
+      iframeDivAdded.text('SSIGN INPUT ID=' + inputFieldID);
+    } else {
+      j$('#merge-field-input-' + inputFieldID).val(inputField.mergeFieldValue);
+      j$('#merge-field-style-input-' + inputFieldID).val(inputField.additionalStyle);
+      j$('#merge-field-render-input-' + inputFieldID).val(inputField.mergeFieldRender.replace(/{--OCTOTHORP--}/g,'#'));
+      defaultStyle = inputField.defaultStyle;
+    }
+
+    // This tells us that this merge field has not been dragged over yet
+    // NOTE: We still want to fill in its values
+    if (inputField.pageNumber === '0') {
+      return;
+    }
+
+    iframeDivAdded.removeClass('editorDropTargetReady');
+    iframeDivAdded.addClass('editorDropTargetPlaced');
+    iframeDivAdded.css('border', 'none');
+
+    var reDragBtn = j$("#reDragBtn_" + inputFieldID);
+    reDragBtn.removeClass('reDragFieldHidden');
+    reDragBtn.addClass('reDragFieldVisible');
+  });
+  j$('[id$="defaultMergeFieldStyle"]').val(defaultStyle);
+}
+
+function addEvent(element, event, fn) {
+  if (element.addEventListener) element.addEventListener(event, fn, false);
+  else if (element.attachEvent) element.attachEvent('on' + event, fn);
+}
+
+var messageEvent;
+var ssignEnabled = ('{!SSignEnabled}' === 'true');
+function getReGenerateSelectLists() {
+  var inputFieldOptions = `<option value="mergeField">Merge Field</option>`;
+  if (ssignEnabled) {
+    inputFieldOptions += `<option value="ssignField">S-Sign Field</option>`;
+  }
+  return inputFieldOptions;
+}
+
+/* ---- START TABS ---- */
+function initializeTabs() {
+  openTab(null, 'pdf-upload-field-tab');
+  j$('.initial-tabs').addClass('active');
+}
+function openTab(evt, tabId) {
+  var i, tabcontent, tablinks;
+  j$('.customTab').css('display', 'block');
+  hideTabContents();
+  j$('.tablinks').removeClass('active');
+  j$('#' + tabId).css('display', 'block');
+  if (evt !== null) evt.currentTarget.className += " active";
+}
+function hideTabContents() {
+  j$('.tabcontent').css('display', 'none');
+}
+/* ---- END TABS ---- */
+
+function getInputFieldClassName(type, id) {
+  return 'pdf-upload-' + type + '-' + id + '-input';
+}
+
+function getProfileOptionsHTML() {
+  var profileOptionsHTML = '';
+  j$('.pdf-upload-profile-name-input').each(function() {
+    profileOptionsHTML += '<option value="' + this.value + '">' + this.value + '</option>';
+  });
+  return profileOptionsHTML;
+}
+
+function refreshProfileOptionsPicklists() {
+  var profileOptionsHTML = getProfileOptionsHTML();
+  j$('.profile-options-picklist').each(function() {
+    var $this = j$(this);
+    $this.empty();
+    $this.append(profileOptionsHTML);
+  });
+}
+
+function setInputFieldSSignBooleanHelper (id, isSSign) {
+  // If the map element hasn't been loaded yet it will return undefined
+  if (inputFieldsMap.get(id) !== undefined &&
+      inputFieldsMap.get(id) !== null) {
+    setInputFieldSSignBoolean(id, isSSign);
+    parent.setInputFieldSSignBoolean(id, isSSign);
+  }
+}
+
+function editInputFieldDefinitions(htmlElement) {
+  var $thisElement = j$(htmlElement);
+  var fieldID = $thisElement.attr('pdf-upload-field-id');
+
+  //We need to set the text appropriately based on what
+  //type of tag is it
+  if(ssignEnabled) {
+    if ($thisElement.val() === 'ssignField') {
+      setInputFieldSSignBooleanHelper(fieldID, true);
+      j$('#input_field_' + fieldID).text('SSIGN INPUT ID=' + fieldID);
+      parent.postMessage('addDefinition{!PDF_UPLOAD_SSIGN_SPLITTER}' + fieldID, '{!URLFOR(SdocsIFrameURL, null)}');
+    }
+    else if ($thisElement.val() === 'mergeField') {
+      setInputFieldSSignBooleanHelper(fieldID, false);
+      j$('#input_field_' + fieldID).text('SDOCS INPUT ID=' + fieldID);
+      parent.postMessage('removeDefinition{!PDF_UPLOAD_SSIGN_SPLITTER}' + fieldID, '{!URLFOR(SdocsIFrameURL, null)}');
+    }
+  }
+
+}
+
+function modifyFieldDefinitionRows(htmlElement) {
+  var $thisElement = j$(htmlElement);
+  var fieldID = $thisElement.attr('pdf-upload-field-id');
+  $mergeFieldRow = j$('#merge-field-tr-' + fieldID);
+  $mergeFieldStyleRow = j$('#merge-field-style-tr-' + fieldID);
+  $mergeFieldRenderRow = j$('#merge-field-render-tr-' + fieldID);
+  $mergeFieldRenderRow = j$('#merge-field-render-tr-' + fieldID);
+  $mergeFieldRowBtn = j$('#merge-field-btn-' + fieldID);
+  if ($thisElement.val() === 'mergeField') {
+    $mergeFieldRow.html(getMergeFieldRowHTML(fieldID));
+    $mergeFieldStyleRow.html(getMergeFieldStyleRowHTML(fieldID));
+    $mergeFieldRenderRow.html(getMergeFieldRenderRowHTML(fieldID));
+    $mergeFieldRowBtn.show();
+  } else {
+    $mergeFieldRow.html('');
+    $mergeFieldStyleRow.html('');
+    $mergeFieldRenderRow.html('');
+    $mergeFieldRowBtn.hide();
+  }
+}
+
+function getMergeFieldRowHTML(fieldID) {
+  return `
+  <td style="padding-top:4px;">
+    Merge Field:
+  </td>
+  <td style="padding-top:4px;">
+    <input class="mergeFieldInputClass" name="MergeField" id="merge-field-input-` + fieldID + `">
+  </td>
+  `;
+}
+
+function getMergeFieldStyleRowHTML(fieldID) {
+  return `
+  <td style="padding-top:4px;">
+    Additional Style:
+  </td>
+  <td style="padding-top:4px;">
+    <input class="mergeFieldInputClass" name="MergeFieldStyle" id="merge-field-style-input-` + fieldID + `">
+  </td>
+  `;
+}
+
+function getMergeFieldRenderRowHTML(fieldID) {
+  return `
+  <td style="padding-top:4px;">
+    Render If:
+  </td>
+  <td style="padding-top:4px;">
+    <input class="mergeFieldInputClass" name="MergeFieldRender" id="merge-field-render-input-` + fieldID + `">
+  </td>
+  `;
+}
+
+function addNewInputFieldToMapHelper (id) {
+  // If the map element hasn't been loaded yet it will return undefined
+  if (inputFieldsMap.get(id) === undefined) {
+    addInputFieldToMap(id);
+    parent.addInputFieldToMap(id);
+  }
+}
+
+var nextID = { 'field' : 1, 'profile' : 1 };
+function addNewDefinition(type, id) {
+  if (id === null || id === undefined) {
+    id = nextID[type] + '';
+    nextID[type] += 1;
+  }
+  else if (parseInt(id) >= nextID[type] ) {
+    nextID[type] = parseInt(id) + 1 ;
+  }
+  
+  addNewInputFieldToMapHelper(id);
+
+  var inputClassName = getInputFieldClassName(type, id);
+  j$('#pdf-upload-' + type + '-tables-container').append(getDefinitionTableHTML(inputClassName, type, id));
+
+  if (type === 'field') {
+    modifyFieldDefinitionRows(j$('#pdf-upload-field-type-' + id)[0]);
+    var draggableDivString = '<div class="droptarget editorDropTargetReady" draggable="true" id="input_field_' +
+                              id +'" input_field_id="' + id + '">SDOCS INPUT ID=' + id + '</div>';
+    draggableDivString += `
+    <button class="pdfUploadBtn reDragFieldHidden" id="reDragBtn_` + id + `"
+        onclick="redragDropTarget('` + id + `', this);parent.removeInputFieldFromDocument('` + id + `')">
+          Re-Drag Field
+    </button>`;
+    var $draggableDiv = j$(draggableDivString);
+    j$('#draggable-div-td-' + id).append($draggableDiv);
+    parent.createEventListener($draggableDiv[0]);
+  } else if (type === 'profile') {
+    refreshProfileOptionsPicklists();
+  }
+}
+
+function redragDropTarget(id) {
+  j$('#input_field_' + id).removeClass('editorDropTargetPlaced');
+  j$('#input_field_' + id).addClass('editorDropTargetReady');
+
+  j$('#reDragBtn_' + id).removeClass('reDragFieldVisible');
+  j$('#reDragBtn_' + id).addClass('reDragFieldHidden');
+}
+
+function removeInputFieldFromMapHelper (id) {
+  if (inputFieldsMap.get(id) !== undefined
+      && inputFieldsMap.get(id) !== null) {
+    removeInputFieldFromMap(id);
+    parent.removeInputFieldFromMap(id);
+  }
+}
+
+function removeDefinition(type, id) {
+  removeInputFieldFromMapHelper(id);
+  j$('#pdf-upload-' + type + '-definition-' + id).remove();
+  if(ssignEnabled && type === 'field') {
+    parent.postMessage('removeDefinition{!PDF_UPLOAD_SSIGN_SPLITTER}' + id, '{!URLFOR(SdocsIFrameURL, null)}');
+  }
+}
+
+function getDefinitionTableHTML(inputClassName, type, id) {
+  if (type === 'field') return getFieldTableHTML(inputClassName, type, id);
+  else if (type === 'profile') return getProfileTableHTML(inputClassName, type, id);
+  else alert('getDefinitionTableHTML(): type not found: ' + type);
+}
+
+function getFieldTableHTML(inputClassName, type, id) {
+  var inputFieldToCopyID = 'pdf-upload-input-to-copy-' + id;
+  var inputFieldResultRow;
+  inputFieldResultRow = `<tr><td style="width:60%">Drag and Drop the Following Field:</td><td id="draggable-div-td-` + id +`"></td></tr>`;
+  return '' +
+  `<div id="pdf-upload-field-definition-` + id + `">
+    <table class="pdf-upload-field-table">
+      <tr>
+        <div class="numberClass">
+          <strong>` + id +  `</strong>
+        </div>
+      </tr>
+      <tr>
+        <td>
+          Type: 
+        </td>
+        <td>
+          <select style="margin-bottom: 5px;" name="Type" class="` + inputClassName  + ` pdf-upload-field-type" onchange="modifyFieldDefinitionRows(this);editInputFieldDefinitions(this);" pdf-upload-field-id="` + id + `" id="pdf-upload-field-type-` + id + `">
+            ` + getReGenerateSelectLists() + `
+          </select>
+          <button class="pdfUploadBtn selectMergeField" id="merge-field-btn-` + id + `"
+          onclick="parent.showMergeFields('` + id + `');" style="margin-bottom: 1px;">
+            Select Merge Field
+          </button>
+        </td>
+      </tr>
+      <tr id="merge-field-tr-` + id + `" name="MergeField" class="` + inputClassName  + `"></tr>
+      <tr id="merge-field-style-tr-` + id + `" name="MergeFieldStyle" class="` + inputClassName  + `"></tr>
+      <tr id="merge-field-render-tr-` + id + `" name="MergeFieldRender" class="` + inputClassName  + `"></tr>
+      ` + inputFieldResultRow + `
+    </table>
+    <div style="padding-top:4px;">
+      <button class="pdfUploadBtn deleteField"
+      onclick="removeDefinition('field', '` + id + `');parent.removeInputFieldFromDocument('` + id + `')">
+        Delete Field
+      </button>
+    </div>
+    <div class="definition-table-separator" />
+  </div>`;
+}
+
+function getProfileTableHTML(inputClassName, type, id) {
+  return '' +
+  `<div id="pdf-upload-profile-definition-` + id + `">
+    <table class="pdf-upload-profile-table">
+      <tr>
+        <td style="padding-top:4px;">
+        Signer Profile ID:
+        </td>
+        <td style="padding-top:4px;">
+        ` + id +  `
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-top:4px;">
+          Profile Name:
+        </td>
+        <td style="padding-top:4px;">
+          <input name="ProfileName" value="Signer ` + id + `" 
+          class="` + inputClassName  + ` pdf-upload-profile-name-input"
+          onchange="refreshProfileOptionsPicklists();" />
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-top:4px;">
+          Email Address:
+        </td>
+        <td style="padding-top:4px;">
+          <input name="Email"
+          class="` + inputClassName  + `" />
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-top:4px;">
+          Signing Order:
+        </td>
+        <td style="padding-top:4px;">
+          <input name="RoutingPosition" value="` + id + `"
+          class="` + inputClassName  + `" />
+        </td>
+      </tr>
+    </table>
+    <button onclick="removeDefinition('profile', '` + id + `');">Delete Profile</button>
+    <div class="definition-table-separator" />
+  </div>`;
+}
+
+function copyToClipboard(elementID) {
+  document.getElementById(elementID).select();
+  document.execCommand('copy');
+}
+
+function wrapInXMLTags(tagName, val) {
+  return '<' + tagName + '>' + val + '</' + tagName + '>';
+}
+
+/* When we build the XML string to store in Salesforce, we loop through all 
+<input name="some_name" value="some_value" /> 
+and all <select name="some_name" or value="some_value">...</select>
+in the order that they appear in the DOM and add <some_name>some_value</some_name>
+to the XML string */
+ </script>
+</apex:outputPanel>
+</apex:page>

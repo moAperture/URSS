@@ -1,0 +1,19 @@
+<apex:page tabStyle="SDOC__SDRelationship__c"
+standardController="SDOC__SDRelationship__c"
+extensions="SDOC.SDUtil"
+action="{!deleteAndRedirect}"
+lightningStylesheets="true">
+    <apex:form >
+        <!-- 
+            ADDED BY MATT: This field is referenced in SDUtil(ApexPages.StandardController controller)
+                           which calls getRecord(), so this field must be referenced on this page.
+                           We can do this with an inputHidden with rendered="false", as per
+                           https://developer.salesforce.com/docs/atlas.en-us.pages.meta/pages/apex_ApexPages_StandardController_getRecord.htm
+        -->
+        <apex:inputHidden value="{!SDOC__SDRelationship__c.SDOC__SDoc__c}" id="hidden_sdoc__c" rendered="false" />
+        <apex:outputText style="margin-left: 35%;" value="Are you sure you want to delete the relationship on {!SDOC__SDRelationship__c.SDOC__Document_Name__c}?"/>
+        <br />
+        <apex:commandButton value="Yes" action="{!deleteAndRedirectHelper}" style="margin-left: 38%; width:150px; height:75px; float: left;"/>
+        <apex:commandButton value="No" action="{!doNotDeleteAndRedirect}" style="width:150px; height:75px;"/>
+    </apex:form>
+</apex:page>

@@ -1,0 +1,38 @@
+<apex:page controller="SDOC.SDUtil" docType="html-5.0" sidebar="false" showHeader="true" lightningStylesheets="true">
+<apex:stylesheet value="{!URLFOR($Resource.SDOC__jQueryUI, '/jquery-ui-1.12.1/jquery-ui.css')}" />
+  <head>
+    <link href="https://fonts.googleapis.com/css?family=Alex+Brush|Petit+Formal+Script|Dynalight|Great+Vibes|Cedarville+Cursive|Playball|Mr+Dafoe|Parisienne|Pinyon+Script|Rochester|Cedarville+Cursive|Homemade+Apple|La+Belle+Aurore|Allura|Felipa|Qwigley|Arizonia|Aguafina+Script|Meddon|&display=swap" rel="stylesheet"></link>
+  </head>
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jquery-1.8.3.min.js')}"/>
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'/resources/js/pdf.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'/resources/js/pdf.worker.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'/resources/js/jspdf.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__jQueryUI, '/jquery-ui-1.12.1/jquery-ui.js')}" />
+
+  <style>
+    td,tr,th{
+  border-collapse: collapse;
+  cursor:all-scroll;
+  }
+  table{
+  width: 100%;
+  border-collapse: collapse;
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10+ and Edge */
+  user-select: none; /* Standard syntax */
+  }
+  </style>
+  
+  <apex:pageBlock title="PDF Preview Status">
+    <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" style="vertical-align:middle"/>&nbsp;Stitching PDF, please wait...
+  </apex:pageBlock>
+  <apex:outputPanel id="pdf-stitch-panel">
+    <c:PDFStitch pdfStitchIdString="" pageOrigin="SDPDFMerge"/>
+  </apex:outputPanel>
+  <apex:form >
+    <!-- <apex:actionFunction name="preparePDFPreview" action="{!preparePDFPreview}" oncomplete="" reRender="">
+      <apex:param name="templateId" value=""/>
+      <apex:param name="base64String" value=""/>
+    </apex:actionFunction> -->
+  </apex:form>
+</apex:page>

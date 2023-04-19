@@ -1,0 +1,5 @@
+<apex:page controller="SDOC.SDRedirect" action="{!redirect}" standardStylesheets="true" sidebar="true" lightningStylesheets="true"> 
+    <apex:form >
+        <apex:outputPanel > You are being redirected to your page.</apex:outputPanel>
+    </apex:form>
+</apex:page>

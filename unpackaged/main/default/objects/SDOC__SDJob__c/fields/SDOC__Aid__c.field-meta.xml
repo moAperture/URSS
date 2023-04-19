@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Aid__c</fullName>
+    <deprecated>false</deprecated>
+    <description>(Optional) A comma delimited list of SFDC attachment IDs (from Notes and Attachments) that will be included in any outbound email.</description>
+    <encryptionScheme>None</encryptionScheme>
+    <externalId>false</externalId>
+    <inlineHelpText>(Optional) A comma delimited list of SFDC attachment IDs (from Notes and Attachments) that will be included in any outbound email.</inlineHelpText>
+    <label>Incl. Attachments with Email</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

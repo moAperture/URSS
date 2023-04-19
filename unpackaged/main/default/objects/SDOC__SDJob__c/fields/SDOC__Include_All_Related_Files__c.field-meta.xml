@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Include_All_Related_Files__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <externalId>false</externalId>
+    <inlineHelpText>If checked, the S-Doc Job will automatically attach all files related to the base record to the email.</inlineHelpText>
+    <label>Include All Related Files</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

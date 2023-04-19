@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__SDoc_Rel_Status__c</fullName>
+    <deprecated>false</deprecated>
+    <externalId>false</externalId>
+    <label>Status</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Generated</fullName>
+                <default>false</default>
+                <label>Generated</label>
+            </value>
+            <value>
+                <fullName>Mailed</fullName>
+                <default>false</default>
+                <label>Mailed</label>
+            </value>
+            <value>
+                <fullName>Emailed</fullName>
+                <default>false</default>
+                <label>Emailed</label>
+            </value>
+            <value>
+                <fullName>Pending Client Approval</fullName>
+                <default>false</default>
+                <label>Pending Client Approval</label>
+            </value>
+            <value>
+                <fullName>Rejected by Client</fullName>
+                <default>false</default>
+                <label>Rejected by Client</label>
+            </value>
+            <value>
+                <fullName>Signed Pending Processing</fullName>
+                <default>false</default>
+                <label>Signed Pending Processing</label>
+            </value>
+            <value>
+                <fullName>Signed Completed</fullName>
+                <default>false</default>
+                <label>Signed Completed</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

@@ -1,0 +1,755 @@
+<apex:page id="page1" controller="SDOC.SDListCreateController" lightningStylesheets="true"
+  action="{!init}" tabstyle="SDOC__SDTemplate__c" sidebar="{!sidebar}">
+
+  <head>
+    <apex:outputPanel rendered="{!showLightningUI}" layout="none">
+      <style>
+        .showListButton, .hideListButton {
+          float: left;
+        }
+        .cke_dialog {
+          border: 1px solid gray !important;
+          border-radius: 3px;
+          background-color: white !important;
+        }
+        .cke_dialog_body {
+          margin: 2px;
+        }
+        body .rich-tabhdr-cell-active, .slds-scope .rich-tabhdr-cell-active {
+          transition: background-color .25s cubic-bezier(0.39, 0.575, 0.565, 1);
+          transition-property: background-color;
+          transition-duration: 0.25s;
+          transition-timing-function: cubic-bezier(0.39, 0.575, 0.565, 1);
+          transition-delay: 0s;
+          border-top: 3px solid #0070d2 !important;
+          border-bottom-color: rgba(0,97,213,0.1) !important;
+          font-weight: 700 !important;
+          color: #3e3e3c !important;
+          background-color: rgba(0,97,213,0.1);
+          cursor: pointer;
+        }
+        .rich-tab-active  , .rich-tab-inactive , .rich-tabpanel-content {
+          background-image: none !important;
+          background-color: transparent !important;
+          border-style: none !important;
+          font-size:12px !important;
+        }
+        .rich-tabhdr-cell-inactive {
+          transition: background-color .25s cubic-bezier(0.39, 0.575, 0.565, 1);
+          transition-property: background-color;
+          transition-duration: 0.25s;
+          transition-timing-function: cubic-bezier(0.39, 0.575, 0.565, 1);
+          transition-delay: 0s;
+        }
+        .rich-tabhdr-cell-inactive:hover {
+          background-color: rgba(0,97,213,0.1);
+          cursor: pointer;
+          border-bottom-color: #0070d2 !important;
+        }
+        .rich-tabpanel-content {
+          color : none !important;
+        }
+        .sdocs_documentation_btn {
+          font-weight: normal !important;
+        }
+        .sdocs_documentation_btn_top {
+          margin-right: 13px !important;
+        }
+        .yui-panel-container .bPageBlock {
+          font-size: 13px !important;
+          font-weight: normal;
+        }
+        .mouseOverInfo {
+          white-space: normal !important;
+        }
+        textarea {
+          width: 100%;
+          height: 37px;
+        }
+        .cke_dialog_ui_hbox_last {
+          vertical-align: bottom;
+        }
+        a.cke_dialog_tab {
+          min-width: 71px;
+        }
+        .slds-vf-scope .pbButton .btn {
+          vertical-align: baseline !important;
+          margin-left: .5rem !important;
+        }
+        a[name="skiplink"] {
+          display: none;
+        }
+        #sstemplate-editor-iframe {
+          margin-top: 0 !important;
+        }
+        .labelCol label {
+          white-space: nowrap !important;
+        }
+        .verticalAlignMiddleBtn {
+          vertical-align: middle !important;
+        }
+        .dataCell {
+          vertical-align: middle !important;
+        }
+      </style>
+    </apex:outputPanel>
+    <apex:outputPanel rendered="{!NOT(showLightningUI)}" layout="none">
+      <apex:stylesheet value="/sCSS/24.0/sprites/1297816277000/Theme3/default/gc/versioning.css" />
+      <style>
+        .btn {
+          height:22px;
+        }
+      </style>
+    </apex:outputPanel>
+    <style>
+      #loading-div {
+        top: 0;
+        left: 0;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        z-index: 2000;
+        opacity: 0.6;
+        background-color: white;
+        visibility: hidden;
+      }
+  
+      #loading-div-spinner {
+        position: absolute;
+        right: 47%;
+        bottom: 50%;
+      }
+    </style>
+  </head>
+
+  <script type="text/javascript">
+    var autoOpenedCombinedDocLink = false;
+
+    var hideHeader = function() {
+      var salesforceHeader = document.getElementById('AppBodyHeader');
+      if (salesforceHeader !== null) {
+        salesforceHeader.style.display = 'none';
+      }
+    }
+
+    var showHeader = '{!JSENCODE($CurrentPage.parameters.showHeader)}';
+    if (showHeader === 'false' || showHeader === '0') {
+        hideHeader();
+    }
+
+
+    // Call addToMassMergeInfo within this so we don't overwrite window.onload
+    // and cause issues (e.g. list view on mass merge page doesn't load if
+    // window.onload is overwritten)
+    function addLoadEvent(func) {
+        addEvent('load', window, func);
+    }
+
+    function addEvent(evnt, elem, func) {
+      if (elem.addEventListener) {  // W3C DOM
+          elem.addEventListener(evnt,func,false);
+      } else if (elem.attachEvent) { // IE DOM
+          elem.attachEvent("on"+evnt, func);
+      } else {
+          elem[evnt] = func;
+      }
+    }
+
+    // Restricts users to selecting up to one HTML template and up to one non-HTML template
+    // by disabling the appropriate checkboxes following a selection
+    function updateCheckboxes() {
+      var htmlTemplateSelected = false;
+      var nonHTMLTemplateSelected = false;
+      var templateCheckboxes = document.getElementsByClassName("templateCheckbox");
+
+      // First pass; find out what the formats of the currently selected templates are
+      for (var i = 0; i < templateCheckboxes.length; i++) {
+        var thisCheckbox = templateCheckboxes[i];
+        if (thisCheckbox.checked) {
+          if (thisCheckbox.className.includes("HTML")) { htmlTemplateSelected = true; }
+          else { nonHTMLTemplateSelected = true; }
+        }
+      }
+
+      // Only allow user to select non-HTML documents (PDF, DOC, etc.) if
+      // just one template is selected and that template is an HTML template, or vice versa.
+      // If both an HTML template and non-HTML template are selected, don't allow
+      // user to select another template. In either case, checked checkboxes
+      // should never be disabled, that way the user can uncheck them and reconsider their selection.
+      for (var i = 0; i < templateCheckboxes.length; i++) {
+        var thisCheckbox = templateCheckboxes[i];
+        var disableCheckbox = 
+        (htmlTemplateSelected && !thisCheckbox.checked && 
+          (nonHTMLTemplateSelected || thisCheckbox.className.includes("HTML")) 
+        ) 
+        ||
+        (nonHTMLTemplateSelected && !thisCheckbox.checked && 
+          (htmlTemplateSelected || !thisCheckbox.className.includes("HTML"))
+        );
+
+        if (disableCheckbox) { thisCheckbox.disabled = true; }
+        else { thisCheckbox.disabled = false; }
+      }
+    }
+
+    // Template checkboxes use an apex:actionSupport to generate an onclick.
+    // We need to add updateCheckboxes to this onclick without overwriting
+    // the onclick provided by the apex:actionSupport
+    var addUpdateCheckboxesToTemplateCheckboxes = function() {
+      var templateCheckboxes = document.getElementsByClassName("templateCheckbox");
+      for (var i = 0; i < templateCheckboxes.length; i++) {
+        var thisCheckbox = templateCheckboxes[i];
+        var onclickOld = thisCheckbox.onclick;
+        thisCheckbox.onclick = function() {
+          onclickOld();
+          updateCheckboxes();
+        }
+      }
+    }
+
+    addLoadEvent(addUpdateCheckboxesToTemplateCheckboxes);
+
+    // This is a failsafe; the initial tab should be chosen as soon as tab 2 loads,
+    // but in case it doesn't, it'll be chosen once the entire window loads
+    var chooseInitialTab = function() {
+      var tab = '{!JSENCODE($CurrentPage.parameters.tab)}';
+      var numRecordsAdded = '{!JSENCODE($CurrentPage.parameters.numRecordsAdded)}';
+      var tabOverride = '{!JSENCODE($CurrentPage.parameters.tabOverride)}';
+      if (numRecordsAdded === '0' && tabOverride !== 'true') {
+        return;
+      }
+      if (tab === '2') {
+        RichFaces.switchTab('{!$Component.TheTabPanel}','{!$Component.tabTwo}','name2');
+      } else if (tab === '3') {
+        RichFaces.switchTab('{!$Component.TheTabPanel}','{!$Component.tabThree}','name3');
+      }
+    }
+
+    addLoadEvent(chooseInitialTab);
+
+    // MASS MERGE IN LIGHTNING
+    var addToMassMergeInfo = function() {
+        var numRecordsAdded = '{!JSENCODE($CurrentPage.parameters.numRecordsAdded)}';
+        var batchSize = '{!JSENCODE($CurrentPage.parameters.batchSize)}';
+        if (numRecordsAdded === '0') {
+            alert('You must select at least one record.');
+        } else if (numRecordsAdded !== '' && batchSize !== '') {
+            alert(numRecordsAdded
+                  + ' records added to mass merge list.\n\n'
+                  + batchSize
+                  + ' records total are currently in your mass merge list.');
+        }
+    }
+
+    addLoadEvent(addToMassMergeInfo);
+    // END MASS MERGE IN LIGHTNING
+
+    /* apex:enhancedList adds &retUrl=/apex/SDJobContact to all of the "Edit", "Delete", etc.
+    links on the list view. These methods make sure important parameters such as objectName
+    and showHeader are retained when users click these links. We call fixRetURLs() twice
+    (once synchronously and once asynchronously) as some "Edit" links are available immediately
+    on at the window onload event, and others are available 500ms or more after the window onload event.*/
+    function fixRetURLsSafe() {
+      fixRetURLs();
+      setTimeout(fixRetURLs, 1000);
+    }
+    function fixRetURLs() {
+      var links = document.querySelectorAll("a[href*='SDJobContact']");
+      for (var i = 0; i < links.length; i++) {
+        if ('{!paramsToRetain}' != '') {
+          links[i].href = links[i].href
+            .replace('SDJobContact?', 'SDJC_UNENCODED')
+            .replace('SDJobContact%3F', 'SDJC_ENCODED')
+            .replace('SDJobContact', 'SDJobContact{!paramsToRetain}')
+            .replace('SDJC_UNENCODED', 'SDJobContact?')
+            .replace('SDJC_ENCODED', 'SDJobContact%3F');
+        }
+      }
+    }
+    addLoadEvent(fixRetURLsSafe);
+  </script>
+
+  <apex:actionStatus id="statLoad">
+    <apex:facet name="start">
+      <div id="loading-div" style="visibility: visible !important; position: absolute !important;">
+        <img width="80" id="loading-div-spinner" src="{!URLFOR($Resource.SDoc,'lightning_spinner.gif')}" class="undraggable" unselectable="on" />
+      </div>
+    </apex:facet>
+  </apex:actionStatus>
+
+  <apex:form >
+    <apex:actionPoller action="{!loadWL}"
+      interval="5"
+      rerender="wlPanel,panelBSize,generateDocsMessages"
+    />
+  </apex:form>
+
+  <apex:tabPanel switchType="client"
+    id="theTabPanel"
+    selectedTab="tabTwo"
+    styleClass="theTabPanel"
+    tabClass="theTabPanel"
+    contentClass="tabContent" 
+    activeTabClass="activeTab" 
+    inactiveTabClass="inactiveTab"
+  >
+    <script type="text/javascript">
+      // Load page with tab 2 selected if URL contains query parameter tab=2
+      chooseInitialTab();
+    </script>
+
+    <apex:tab label="Add Records" name="name1" id="tabOne" rendered="{!JSENCODE($CurrentPage.parameters.tab1) != 'false'}">
+      <apex:pageMessages />
+      <apex:sectionHeader title="S-Docs Mass Merge" subtitle="Add records for Mass Merge"/>
+      <apex:pageBlock >
+        <apex:pageBlockSection columns="2">
+          <apex:pageBlockSectionItem >
+            <apex:outputLabel value="Object" />
+            <apex:form >
+              <apex:selectList id="objName" size="1" value="{!objectName}">
+                <apex:selectOptions value="{!objectNames}"/>
+                <apex:actionSupport event="onchange"  action="{!objChangePR}" rerender="theTabPanel" status="statLoad"/>
+              </apex:selectList>
+            </apex:form>
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem id="panelBSize">
+            <apex:outputLabel value="Current Batch Size" />
+            <apex:outputText value="{!listSize}" />
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+        <apex:pageBlockSection columns="1" collapsible="false" showHeader="false">
+          <apex:pageBlockSectionItem >
+            <apex:panelGroup id="panelMain">
+              <apex:enhancedList type="{!ObjectName}"
+                height="400"
+                rowsPerPage="25" 
+                rendered="{!useEnhancedList}"
+              />
+              <apex:outputPanel rendered="{!NOT(useEnhancedList)}">
+                When you select an object from this list, you will be redirected to that object's <br /> 
+                list view. If that object supports mass merge, you should see buttons on the  <br /> 
+                list view that you can use to add selected records to your mass merge list. <br /> 
+              </apex:outputPanel>
+            </apex:panelGroup>                        
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+      </apex:pageBlock>
+    </apex:tab>
+
+    <apex:tab label="Choose Templates" name="name2" id="tabTwo">
+      <apex:pageMessages id="tabTwoPageMessages" />      
+      <apex:sectionHeader title="S-Docs Mass Merge" subtitle="Choose templates for Mass Merge"/>
+      <apex:pageBlock >
+        <apex:pageBlockSection columns="1" collapsible="false">
+          <apex:pageBlockSectionItem >
+            <apex:outputText >
+              Please select up to one document template (PDF, DOC, XLS, etc.) and up to one HTML email template.
+            </apex:outputText>
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+        <apex:pageBlockSection columns="3" collapsible="false">
+          <apex:pageBlockSectionItem >
+            <apex:outputPanel >
+              <apex:form >
+                <apex:actionFunction name="searchServer" action="{!init}" rerender="panel3g" status="panel3gStatus">
+                  <apex:param name="txtValue" value=""/>
+                </apex:actionFunction>  
+                <script type="text/javascript">
+                  // Searches and updates categories based on SearchText2. If Enter key (13) is pressed, prevent it from reloading the page
+                  function doSearch() {
+                    if(event.keyCode === 13){
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }
+                    searchServer(
+                      document.getElementById("{!$Component.searchText2}").value,
+                      document.getElementById("{!$Component.searchcategories}").options[document.getElementById("{!$Component.searchcategories}").selectedIndex].value
+                      );
+                  }
+                </script> 
+                <apex:commandButton styleClass="btn" 
+                  onclick="RichFaces.switchTab('{!$Component.TheTabPanel}','{!$Component.tabThree}','name3');"
+                  value="Go To Next Step"
+                  oncomplete=""
+                  reRender="wlPanel"
+                />
+                <br/>
+                <apex:panelGroup >
+                  <apex:outputLabel for="searchcategories">{!tm['Search in']} &nbsp;</apex:outputLabel>
+                  <apex:selectList id="searchcategories" size="1" value="{!docCategory}">
+                    <apex:selectOptions value="{!docCategories}"/>
+                    <apex:actionSupport event="onchange"  action="{!init}" rerender="panel3g" status="panel3gStatus"/>
+                  </apex:selectList>
+                  <apex:outputLabel for="searchText2"> {!tm['for :']} &nbsp;</apex:outputLabel>
+                  <apex:inputText id="searchText2" value="{!searchText2}" onkeypress="doSearch();"/>
+                    <apex:actionSupport event="onkeypress" action="{!init}" rerender="panel3g"/>
+                  <apex:commandButton value="{!tm['Search']}" action="{!init}" rerender="panel3g" status="panel3gStatus">
+                      <apex:param name="txtValue" value="{!searchText2}"/>
+                  </apex:commandButton>
+                  <apex:actionStatus id="panel3gStatus">
+                      <apex:facet name="start">
+                          <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" /> {!tm['Searching...']}
+                      </apex:facet>
+                  </apex:actionStatus>
+                </apex:panelGroup>
+              </apex:form>
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+        <apex:pageBlockSection columns="2" collapsible="false">
+          <apex:pageBlockSectionItem >
+            <apex:outputPanel id="panel3g" style="overflow:scroll;height:400px;" layout="block">
+              <apex:form id="form2a">
+                <apex:pageBlockTable value="{!docsList}"  var="c" rendered="{!NOT(ISNULL(docsList))}">
+                    <apex:column >
+                      <apex:inputCheckbox styleClass="templateCheckbox {!HTMLENCODE(c.t.SDOC__Template_Format__c)}" value="{!c.checked}">
+                        <apex:actionsupport event="onclick"
+                          action="{!addDoc}" 
+                          rerender="panel4g,panelStartBtn1,panelStartBtn2,panelStartBtn3,panelStartBtn4,tabTwoPageMessages"
+                          status="statLoad"
+                        />
+                      </apex:inputCheckbox>
+                    </apex:column>
+                    <apex:column headerValue="Name">
+                      <img src="{!c.formatIconImgSrc}" border="0" />&nbsp;&nbsp;<apex:outputText value="{!c.t.Name}"/>
+                    </apex:column>
+                    <apex:column >
+                      <apex:outputPanel rendered="{!c.t.SDOC__Allow_Edit__c && (c.t.SDOC__Template_Format__c == 'PDF' || c.t.SDOC__Template_Format__c == 'HTML')}">
+                        <b>
+                          <img src="/img/icon/custom51_100/pencil16.png" alt="Edit" border="0"/>
+                        </b>
+                      </apex:outputPanel>
+                    </apex:column>
+                    <apex:column value="{!c.t.SDOC__Description__c}" headerValue="Description"/>
+                </apex:pageBlockTable>
+              </apex:form>
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+            <apex:outputPanel id="panel4g">
+              <apex:form id="form2b" rendered="{!hasSelectedDocs}">
+                <apex:pageBlock title="Selected Documents">
+                  <apex:pageBlockTable value="{!selectedDocs}" var="ca" columnsWidth="50px, *" cellpadding="0" cellspacing="0">
+                      <apex:column width="50px" headerValue="Remove">
+                        <apex:commandButton value="X"
+                          action="{!removeDoc}"
+                          styleClass="btn"
+                          rerender="panel4g,panel3g,panelStartBtn1,panelStartBtn2"
+                          status="statLoad"
+                          oncomplete=""
+                    >
+                          <apex:param name="tid" value="{!ca.t.ID}" />
+                        </apex:commandButton>
+                      </apex:column>
+                      <apex:column headerValue="Name">
+                        <img src="{!ca.formatIconImgSrc}" border='0' />&nbsp;&nbsp;<apex:outputText value="{!ca.t.Name}"/>
+                      </apex:column>
+                  </apex:pageBlockTable>
+                </apex:pageBlock>
+              </apex:form>
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+      </apex:pageBlock>
+    </apex:tab>
+
+    <apex:tab label="Generate Docs" name="name3" id="tabThree">
+      <apex:pageMessages id="generateDocsMessages" />
+      <apex:form id="form3">
+        <apex:sectionHeader title="S-Docs Mass Merge" subtitle="Start Mass Merge"/>
+        <apex:pageBlock >
+          <apex:panelGroup id="wlPanel">
+            <apex:pageBlockSection columns="1" collapsible="false">
+              <apex:pageBlockSectionItem >
+                <apex:outputPanel id="panelStartBtn1">
+                  <apex:commandButton rendered="{!isSummaryDoc}"
+                    value="Create Single Mass Merge Doc"
+                    reRender=""
+                    oncomplete="window.open('{!printDocAndLabelsLink}');"
+                  />
+                  <apex:outputText rendered="{!NOT(isSummaryDoc)}">
+                    <!-- disable when no record, no templates, isRunning or no additional records added -->
+                    <apex:commandButton action="{!printDoc}"
+                      value="Start Mass Merge"
+                      styleClass="btn"
+                      status="statLoad"
+                      disabled="{!NOT(hasSelectedDocs) || listsize==0 || hasCompleted || autostart}"
+                      rerender="wlPanel,generateDocsMessages"
+                    />
+                  </apex:outputText>
+                </apex:outputPanel>
+              </apex:pageBlockSectionItem>
+              <apex:pageBlockSectionItem rendered="{!completedSize==0 && hasSelectedDocs && not(hasCompleted)}">
+                <apex:outputPanel id="panelStartBtn3">
+                  <apex:inputCheckbox selected="{!logActivityHistory}">
+                    <apex:actionSupport event="onclick" action="{!setLogActivityHistory}" rerender="panelStartBtn4"/>
+                  </apex:inputCheckbox>
+                  <apex:outputText >
+                    &nbsp;Log an activity for each record included in this Mass Merge
+                  </apex:outputText>
+                </apex:outputPanel>
+              </apex:pageBlockSectionItem>
+              <apex:pageBlockSectionItem rendered="{!NOT(completedSize==0 && hasSelectedDocs && NOT(hasCompleted))}">
+                <apex:outputpanel id="panelStartBtn4">                             
+                  <apex:outputText rendered="{!listsize==0}">
+                    &nbsp;&nbsp;[You must add at least one record to continue]
+                  </apex:outputText>
+                  <apex:outputText rendered="{!NOT(hasSelectedDocs) && not(hasCompleted)}">
+                    &nbsp;&nbsp;
+                    [You must choose at least one template to continue]
+                  </apex:outputText>
+                  <apex:outputText rendered="{!(hasSelectedDocs || hasCompleted) && completedSize>0 && NOT(isSummaryDoc)}">                    
+                    &nbsp;&nbsp;
+                    Progress: {!completedSize} of {!listSize} Records Completed
+                  </apex:outputText>
+                  <apex:outputText rendered="{!(hasSelectedDocs || hasCompleted) && completedSize>0 && NOT(isSummaryDoc) && readyToSendEmail && completedSize == listSize}">           
+                    - ready to send email
+                    &nbsp;&nbsp;
+                    <apex:commandButton onclick="console.log('calling send email');sendEmailAction();"
+                      value="Send Email"
+                      styleClass="btn"
+                      status="statLoad"
+                      rerender="wlPanel,generateDocsMessages"
+                    />
+                    <apex:outputPanel rendered="{!nonHTMLTemplate.SDOC__Mass_Merge_Clear_Email_Jobs__c}">
+                      <c:HelpIcon helpText="The selected template specified the setting to clear jobs after emailing. Clicking this button will clear selections when email is sent. " />
+                    </apex:outputPanel>
+                  </apex:outputText>
+                  <apex:outputPanel rendered="{!emailSent}">
+                    <apex:outputText style="color: green;" value=" - {!tm['Email sent!']}" />
+                  </apex:outputPanel>
+                  <apex:outputText rendered="{!errorSize>0}">                    
+                    &nbsp;&nbsp;&nbsp;&nbsp;
+                    Errors: {!errorSize} - Click Error link next to record to view details
+                  </apex:outputText> 
+                  <apex:actionFunction name="sendEmailAction" action="{!sendEmail}" rerender="panelStartBtn1" />
+                </apex:outputpanel>
+              </apex:pageBlockSectionItem>
+              <apex:pageBlockSectionItem >
+                <apex:outputpanel id="panelStartBtn2">
+                  <apex:outputPanel rendered="{!hasCompleted && NOT(isSummaryDoc)}">
+                    
+                    <apex:outputPanel rendered="{!AND(nonHTMLTemplate.SDOC__Template_Format__c == 'DOCX')}">
+                      <apex:commandButton value="Combine All"
+                        onclick="window.open('{!combineAllDOCXLink}');"
+                        styleClass="btn"
+                        reRender="wlPanel" />
+                        <apex:outputPanel rendered="{!AND(combinedDocStatus == null, nonHTMLTemplate.SDOC__Mass_Merge_Clear_Jobs__c)}">
+                          <c:HelpIcon helpText="The selected template specified the setting to clear jobs after combining all. Clicking this button will clear selections when combination is complete." />
+                        </apex:outputPanel>
+                        <apex:outputPanel rendered="{!NOT(nonHTMLTemplate.SDOC__Mass_Merge_Clear_Jobs__c)}">
+                          <c:HelpIcon helpText="This combines all generated documents into a single document" />
+                        </apex:outputPanel>
+                    </apex:outputPanel>
+
+                    <apex:outputPanel rendered="{!AND(nonHTMLTemplate.SDOC__Template_Format__c != 'DOCX')}">
+                      <apex:commandButton value="Combine All"
+                        action="{!combineAll}"
+                        styleClass="btn"
+                        disabled="{!NOT(hasCompleted) || processingCombinedDoc || doneProcessingCombinedDoc}"
+                        reRender="wlPanel" />
+                        <apex:outputPanel rendered="{!AND(combinedDocStatus == null, nonHTMLTemplate.SDOC__Mass_Merge_Clear_Jobs__c)}">
+                          <c:HelpIcon helpText="The selected template specified the setting to clear jobs after combining all. Clicking this button will clear selections when combination is complete." />
+                        </apex:outputPanel>
+                        <apex:outputPanel rendered="{!NOT(nonHTMLTemplate.SDOC__Mass_Merge_Clear_Jobs__c)}">
+                          <c:HelpIcon helpText="This combines all generated documents into a single document" />
+                        </apex:outputPanel>
+                        <apex:outputPanel rendered="{!combinedDocStatus != null}">
+                          Status: {!combinedDocStatus}
+                        </apex:outputPanel>
+                        <apex:outputPanel rendered="{!doneProcessingCombinedDoc && !combinedDocHasErrors}">
+                          <apex:outputPanel rendered="{!combinedDocWrappersSize == 1}">
+                            <script type="text/javascript">
+                              if (!autoOpenedCombinedDocLink && '{!combineAllDocCanBeEmailed}' === 'false') { // don't auto-open combined doc if it can be emailed
+                                window.open('{!combinedDocWrappers[0].sdoc.GD_Link__c}');
+                                autoOpenedCombinedDocLink = true;
+                              }
+                            </script>
+                          </apex:outputPanel>
+                          <apex:pageBlockTable value="{!combinedDocWrappers}" var="cdw">
+                            <apex:column style="width:36px;">
+                              <apex:outputText escape="false" value="{!cdw.sdoc.SDOC__View_Link__c}" />
+                            </apex:column>
+                            <apex:column headerValue="Name">
+                              <a href="{!cdw.sdoc.SDOC__GD_Link__c}" target="_blank">{!cdw.sdoc.SDOC__Attachment_Name__c}</a>
+                            </apex:column>
+                          </apex:pageBlockTable>
+                          <apex:commandButton value="Email combined document" rendered="{!combineAllDocCanBeEmailed}"
+                            onclick="window.open('{!emailCombinedDocLink}');"
+                            styleClass="btn"
+                            oncomplete="" />
+                        </apex:outputPanel>
+                      </apex:outputPanel>
+
+                  </apex:outputPanel>
+                </apex:outputpanel>
+              </apex:pageBlockSectionItem>
+              <apex:pageBlockSectionItem >
+                <apex:outputText rendered="{!listsize>0}">
+                  <apex:outputPanel rendered="{!JSENCODE($CurrentPage.parameters.startOverClosesConsoleTab) == 'true'}">
+                    <apex:includeScript value="/support/console/43.0/integration.js"/>
+                    <script>
+                      function closeConsoleTab() {
+                        sforce.console.getEnclosingPrimaryTabId(closeSubtab);
+                      }
+                      
+                      var closeSubtab = function closeSubtab(result) {
+                        var tabId = result.id;
+                        sforce.console.closeTab(tabId);
+                      };
+                    </script>
+                  </apex:outputPanel>
+                  <apex:outputPanel id="remove-all">
+                    <apex:commandButton rendered="{!clearListRedirects}"
+                      styleClass="btn"
+                      value="{!startOverBtnText}"
+                      status="statLoad"
+                      action="{!clearListRedirect}"
+                      oncomplete=""
+                      reRender=""
+                    />
+                    <apex:outputPanel rendered="{!NOT(clearListRedirects)}">
+                      <apex:commandButton rendered="{!JSENCODE($CurrentPage.parameters.startOverClosesConsoleTab) != 'true'}"
+                        styleClass="btn"
+                        value="{!startOverBtnText}"
+                        status="statLoad"
+                        action="{!clearList}"
+                        rerender="wlPanel"
+                        oncomplete=""
+                      />
+                      <apex:commandButton rendered="{!JSENCODE($CurrentPage.parameters.startOverClosesConsoleTab) == 'true'}"
+                        styleClass="btn"
+                        value="Clear list and close tab"
+                        status="statLoad"
+                        action="{!clearList}"
+                        rerender="wlPanel" 
+                        oncomplete="closeConsoleTab();"
+                      />
+                    </apex:outputPanel>
+                    <c:HelpIcon helpText="This will clear the existing selections in the table below." />
+                  </apex:outputPanel>
+                </apex:outputText>
+              </apex:pageBlockSectionItem>
+              <apex:pageBlockSectionItem >
+                <apex:outputpanel style="overflow:scroll;height:250px;" layout="block">
+                  <apex:pageBlockTable value="{!objWrapper}" var="ow" rendered="{!objWrapper.size > 0}">
+                    <apex:column headerValue="">
+                      <apex:commandButton value="Remove"
+                        action="{!removeRec}"
+                        styleClass="btn"
+                        rerender="wlPanel"
+                        status="statLoad" 
+                        onComplete=""
+                      >
+                        <apex:param name="rid" value="{!ow['obj.id']}"/>
+                      </apex:commandButton>
+                    </apex:column>
+                    <apex:column headerValue="Name" rendered="{!objectName!='CampaignMember'}">
+                      <a href="/{!ow['obj.id']}" target="_blank">{!ow.name}</a>
+                    </apex:column>
+                    <apex:column headerValue="Campaign Member" rendered="{!objectName=='CampaignMember'}">
+                      <a href="/{!ow['obj.id']}" target="_blank">
+                        <apex:outputText rendered="{!ow['obj.contactid'] !=null}">
+                          {!ow['obj.contact.name']}
+                        </apex:outputText>
+                        <apex:outputText rendered="{!ow['obj.leadid'] !=null}">
+                          {!ow['obj.lead.name']}
+                        </apex:outputText>
+                      </a>
+                    </apex:column>
+                    <apex:column headerValue="Campaign Member Type" rendered="{!objectName=='CampaignMember'}">
+                      <apex:outputText rendered="{!ow['obj.contactid'] !=null}">
+                        Contact
+                      </apex:outputText>
+                      <apex:outputText rendered="{!ow['obj.leadid'] !=null}">
+                        Lead
+                      </apex:outputText>
+                    </apex:column>
+                    <apex:column value="{!ow['job.Status_Link__c']}" id="status-link" rendered="{!includedMassMergePage!=true}"/> 
+                    <apex:column value="{!ow['job.SDOC__Status_Link__c']}" id="status-link-2" rendered="{!includedMassMergePage==true}" />
+                    <apex:column value="{!ow['job.SDoc1__r.Edit_Link__c']}" id="edit-link" headerValue="Edit Link" rendered="{!NOT(renderSecondEditLink)}" />
+                    <apex:column value="{!ow['job.SDoc1__r.Edit_Link__c']}" id="edit-link-1" headerValue="Edit Document 1" rendered="{!renderSecondEditLink}" style="width:10%;"/>
+                    <apex:column value="{!ow['job.SDoc2__r.Edit_Link__c']}" id="edit-link-2" headerValue="Edit Document 2" rendered="{!renderSecondEditLink}" style="width:10%;" />
+                    <apex:column value="{!ow['obj.mailingstreet']}" rendered="{!objectName=='Contact'}"/>
+                    <apex:column value="{!ow['obj.mailingCity']}" rendered="{!objectName=='Contact'}"/>
+                    <apex:column value="{!ow['obj.mailingstate']}" rendered="{!objectName=='Contact'}"/>
+                    <apex:column value="{!ow['obj.mailingpostalcode']}" rendered="{!objectName=='Contact'}"/>
+                  </apex:pageBlockTable>
+                </apex:outputpanel>
+              </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+          </apex:panelGroup>
+        </apex:pageBlock>
+      </apex:form>
+    </apex:tab>
+
+    <apex:tab label="Print Labels/Envelopes" name="name4" id="tabFour">
+      <apex:pageMessages />   
+      <apex:sectionHeader title="S-Docs Mass Merge" subtitle="Create Mailing Labels/Envelopes"/>
+      <apex:form id="form4">
+        <apex:pageBlock >
+          <apex:pageBlockSection title="Choose a Mailing Label/Envelope Template" columns="2" collapsible="false">
+            <apex:pageBlockSectionItem >
+              <apex:outputLabel value="Label/Envelope Template" />
+              <apex:selectList id="Labels" value="{!selectedLabel}" size="1" title="Labels">
+                <apex:selectOptions value="{!templatelabels}" />
+                <apex:actionSupport event="onchange"
+                  oncomplete=""
+                  reRender="form4"
+                />          
+              </apex:selectList>
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem >
+              <apex:commandButton styleClass="btn"
+                value="Print Labels/Envelopes"
+                reRender=""
+                disabled="{!printLabelsLink == NULL || printLabelsLink == ''}"
+                oncomplete="window.open('{!printLabelsLink}');"
+              />
+            </apex:pageBlockSectionItem>
+          </apex:pageBlockSection>
+        </apex:pageBlock>
+      </apex:form>
+    </apex:tab>
+
+    <!-- Mass Merge Archive List Feature -->
+    <apex:tab label="Mass Merge Archive" name="name5" id="tabFive">
+      <apex:pageMessages />
+      <apex:sectionHeader title="S-Docs Mass Merge" subtitle="Previously Generated Mass Merge Documents"/>
+      <apex:pageBlock >
+        <apex:pageBlockSection columns="1" collapsible="false">
+          <apex:pageBlockSectionItem >
+            <apex:form >
+              <apex:commandButton value="Refresh"
+                rerender="archiveDocList"
+                status="statLoad"
+                oncomplete=""
+              />
+            </apex:form>
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+            <apex:pageBlockTable id="archiveDocList" value="{!archiveDocList}"  var="ad" rendered="{!NOT(ISNULL(archiveDocList))}">
+              <apex:column headerValue="View">
+                <a href="/servlet/servlet.FileDownload?file={!ad.archiveDoc.Id}" target="_blank">
+                  <apex:image url="{!URLFOR(ad.viewLink, null)}" rendered="{!ad.viewLink != null}" />
+                  <apex:outputText value="View" rendered="{!ad.viewLink == null}" />
+                </a>
+              </apex:column>
+              <apex:column headerValue="Email">
+                <apex:outputPanel rendered="{!ad.canEmail}">
+                  <a href="{!URLFOR('/apex/SDEmail?did=' + ad.archiveDoc.Id + '&template=' + ad.templateId + '&sendAction=close', null)}" target="_blank">
+                    <img src="/img/func_icons/util/mailCloseEnv16.gif" />
+                  </a>
+                </apex:outputPanel>
+              </apex:column>
+              <apex:column headerValue="Name" value="{!ad.archiveDoc.Name}" />
+              <apex:column headerValue="Created By" value="{!ad.userName}" />
+              <apex:column headerValue="Created Date" value="{!ad.archiveDoc.CreatedDate}" />
+            </apex:pageBlockTable>
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+      </apex:pageBlock>
+    </apex:tab>
+    <!-- End Mass Merge Archive List Feature -->
+  </apex:tabPanel>
+</apex:page>

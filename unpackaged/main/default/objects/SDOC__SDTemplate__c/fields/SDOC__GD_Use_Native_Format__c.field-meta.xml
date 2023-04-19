@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__GD_Use_Native_Format__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <externalId>false</externalId>
+    <inlineHelpText>By default, any document uploaded to Google Drive through S-Docs will upload the file as a Google Doc. This field can be used to have the file be uploaded in it&#39;s native format, for example a PDF template will be uploaded as a PDF file and not a Google Doc</inlineHelpText>
+    <label>Google Docs: Use Native Format</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

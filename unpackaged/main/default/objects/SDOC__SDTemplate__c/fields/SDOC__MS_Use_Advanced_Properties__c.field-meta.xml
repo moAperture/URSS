@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__MS_Use_Advanced_Properties__c</fullName>
+    <defaultValue>true</defaultValue>
+    <deprecated>false</deprecated>
+    <description>Enable MS header, footer and paproperty definitions</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Checking this box will enable Advanced MS Properties like Footer/Header Definitions and page properties. You should leave this unchecked for your existing S-Docs templates where you have defined this in the template body.</inlineHelpText>
+    <label>MS Use Advanced Properties</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

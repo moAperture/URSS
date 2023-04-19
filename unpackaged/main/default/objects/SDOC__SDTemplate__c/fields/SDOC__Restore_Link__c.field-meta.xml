@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Restore_Link__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Allows you to replace the current version of the template with this version.</description>
+    <externalId>false</externalId>
+    <formula>IF ( NOT(isblank(SDOC__Master_Template__c)) ,
+HYPERLINK(&quot;/apex/SDOC__SDRedirect?redirectPage=SDOC__SDRestoreTemplate&amp;restoreId=&quot; + Id + 
+&quot;&amp;currentId=&quot; + SDOC__Master_Template__c + 
+&quot;&amp;currentName=&quot; + SDOC__Master_Template__r.Name,
+IMAGE(&quot;/img/func_icons/util/ileUndo16.gif&quot;,&quot;Restore&quot;),
+&#39;_self&#39;),
+null
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <inlineHelpText>Allows you to replace the current version of the template with this version.</inlineHelpText>
+    <label>Restore Link</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

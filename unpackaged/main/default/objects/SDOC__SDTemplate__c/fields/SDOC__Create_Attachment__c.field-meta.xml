@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Create_Attachment__c</fullName>
+    <defaultValue>true</defaultValue>
+    <deprecated>false</deprecated>
+    <description>By checking, an attachment will be created for each document that uses this template. Enabling this feature will consume more file storage space.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>By checking, an attachment will be created for each document that uses this template. Enabling this feature will consume more file storage space.</inlineHelpText>
+    <label>Auto Create Attachment</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

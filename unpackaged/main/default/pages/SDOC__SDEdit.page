@@ -1,0 +1,590 @@
+<apex:page controller="SDOC.SDEmailController" 
+showHeader="false" tabstyle="SDOC__SDTemplate__c" standardStylesheets="true" sidebar="false" action="{!onLoad}"
+title="{!tm['Edit Document']}"
+lightningStylesheets="true"> 
+
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'skin.css')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'yahoo-dom-event.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'container-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'animation-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__ckEditor,'/ckeditor/ckeditor.js')}"/>
+<apex:stylesheet value="/sCSS/24.0/sprites/1297816277000/Theme3/default/gc/versioning.css" />   
+<style>
+.buttonStyle { min-width:75px; height:30px; }
+.buttonStyleL { width:150px; height:30px; }
+.right { text-align: right; }
+.left { text-align: left; }
+</style>
+
+<script type="text/javascript">
+function resizeEditor() {
+
+  var defaultHeight = 300;
+  var newHeight = window.innerHeight-200; 
+  var height = defaultHeight > newHeight ? defaultHeight: newHeight;
+  var CKEDITOR = window.CKEDITOR;
+        for ( var i in CKEDITOR.instances ){
+            var currentInstance = i;
+             break;
+        }
+     CKEDITOR.instances[currentInstance].resize('100%',height);
+}
+
+var AgreementForm = document.getElementById("blur");
+//AgreementForm.style.height = window.screen.availHeight + "px";
+//AgreementForm.style.width = window.screen.availWidth + "px";
+
+var ContainerElem = document.getElementById("StatusBox");
+//ContainerElem.style.display = "block";
+AlignToCenter(ContainerElem);
+
+function AlignToCenter(Element)
+{
+var availableHeight = 0;
+var availableWidth = 0;
+if (Element.ownerDocument)
+{
+var docElement = Element.ownerDocument.documentElement;
+availableHeight = parseInt(docElement.clientHeight);
+if (availableHeight == "NaN") availableHeight = 0;
+
+availableWidth = parseInt(docElement.clientWidth);
+if (availableWidth == "NaN") availableWidth = 0;
+}
+
+if (availableHeight == 0 || availableHeight == "NaN")
+availableHeight = window.screen.availHeight - 200;
+if (availableWidth == 0 || availableWidth == "NaN")
+availableWidth = window.screen.availWidth - 100;
+
+var msgBoxTop = parseInt((availableHeight - parseInt(Element.clientHeight))/2);
+var msgBoxleft = parseInt((availableWidth - parseInt(Element.style.width))/2);
+
+if (msgBoxTop == "NaN" || msgBoxTop == 0)
+msgBoxTop = 100;
+
+Element.style.left = msgBoxleft + "px";
+Element.style.top = msgBoxTop + window.pageYOffset + "px";
+}
+
+function reposition(){
+if(navigator.appName == 'Window Internet Explorer') AgreementForm.style.top = document.body.scrollTop;
+else AgreementForm.style.top = window.pageYOffset+"px";
+AlignToCenter(ContainerElem);
+}
+</script>
+<script>
+    function getQuerystring(key, default_)
+        {
+          if (default_==null) default_="";
+          key = key.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+          var regex = new RegExp("[\\?&]"+key+"=([^&#]*)");
+          var qs = regex.exec(window.location.href);
+          if(qs == null)
+            return default_;
+          else
+            return qs[1];
+    }   
+
+    var newwindow;
+
+</script>
+
+
+<body>
+  <apex:outputPanel rendered="{!allowEditWhitelist}">
+    <apex:actionStatus id="statLoad">
+        <apex:facet name="start">
+            <div id="blur" style="position:absolute; left:1px; top:1px; width:100%; height:100%; text-align:center; vertical-align: middle; background-color: #dcdcdc; opacity:0.7;filter:alpha(opacity=70)">
+            </div>
+            <div id="StatusBox" style="position:absolute; left:50%; top:300px; width: 120px; height:50px; opacity:1;filter:alpha(opacity=100)">
+            <table border="1" cellpadding="0" cellspacing="0" style="border-left-color: #336699;
+            border-bottom-color: #336699; width: 120px; border-top-color: #336699; height:50px;
+            border-right-color:#336699; background-color:#ffffff;">
+            <tr>
+            <td align="left" valign="top"> 
+            <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; height: 100%">
+            <tr>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;">
+            <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}"/></td>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;color:darkred;font-size:11pt;font-weight:bold;">
+            &nbsp;Loading...</td>
+            </tr>
+            </table>
+            </td>
+            </tr>
+            </table>
+            </div>
+        </apex:facet>
+    </apex:actionStatus>
+
+    <apex:sectionHeader title="{!tm['Edit Document']}" subtitle="{!docName}"/>
+          <apex:form >
+            <apex:pageBlock >
+            <apex:outputPanel id="BtnsTopPanel">
+              <div>
+                  <div style="float: left;">
+                    <apex:actionStatus id="statTop">
+                        <apex:facet name="start">
+                            Creating attachments, please wait...
+                            <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+                        </apex:facet>
+                    </apex:actionStatus>
+                    <apex:commandButton value="{!customURLButtonName}" onclick="window.open('{!URLFOR(customURL, null)}', '{!customURLButtonName}', 'width=700,height=700');" styleClass="buttonStyle left" style="width: 12em;text-align: center;background-color:{!customBtnBackgroundColor};color:{!customBtnTextColor};"
+                    rendered="{!customURLExists && customSaveType == null && NOT(returnToRecord)}" reRender="BtnsTopPanel"/>
+                    <apex:outputPanel layout="none">
+                      <apex:commandButton value="{!tm['Save & Create New Attachment']}" action="{!createNewAttachment}" status="statTop" styleClass="buttonStyle left" style="width: 16em;" rendered="{!allowNameNewAttachment}"/>
+                      <apex:outputPanel id="newAttachmentInput" rendered="{!allowNameNewAttachment}" styleClass="left">
+                        <apex:outputLabel for="editDocName"><b>New Attachment Name: </b></apex:outputLabel>
+                        <apex:inputText id="editDocName" value="{!editDocName}" style="width: 16em;"/>
+                      </apex:outputPanel>
+                    </apex:outputPanel>
+                  </div>
+                  <div style="float: right;">
+                    <apex:includeScript value="/support/console/44.0/integration.js"/>
+                    <script type="text/javascript">
+                      function openPreviewPage() {
+                        if (checkForChanges()) {
+                          alert("You have made changes to the document, this preview will not reflect those changes until the document is saved.");
+                        }
+                        var docLink = '{!URLFOR(docLink, null)}';
+                        if (sforce.console.isInConsole() && "{!$User.UIThemeDisplayed == 'Theme4t'}" === 'true') {
+                          var openSubtab = function openSubtab(result) {
+                              var primaryTabId = result.id;
+                              sforce.console.openSubtab(primaryTabId , docLink, true, 
+                                'View Document', null, null, 'View Document');
+                          };
+                          sforce.console.getEnclosingPrimaryTabId(openSubtab);
+                        }
+                        else {
+                          window.open(docLink, '_blank');
+                        }
+                      }
+                      function closeEditPage() {
+                        if ('{!isMobileTheme}' === 'true' && '{!$CurrentPage.parameters.previousDocs}' !== 'null') {
+                          redirectToSDCreateMobile();
+                          return;
+                        }
+                        if (checkForChanges()) {
+                          alert("You have made changes to the document, closing this page will result in these changes not being saved.");
+                        }
+                        if (sforce.console.isInConsole() && "{!$User.UIThemeDisplayed == 'Theme4t'}" === 'true') {
+                          var closeSubtab = function closeSubtab(result) {
+                            var tabId = result.id;
+                            sforce.console.closeTab(tabId);
+                          };
+                          sforce.console.getEnclosingTabId(closeSubtab);
+                        }
+                        else {
+                          window.top.close();
+                        }
+                      }
+
+                      function saveEditPage() {
+                        saveEventOverride = true;
+                      }
+                    </script>
+                    <table>
+                      <tr>
+                        <apex:outputPanel rendered="{!didSave && NOT(isMobileTheme)}" style="color:green;">
+                          <script>
+                            alert('Save successful! You may now close this tab, or click "OK" to continue editing.');
+                          </script>
+                        </apex:outputPanel>
+                        <!-- orignal button -->
+                        <td  style="padding-right: 2px;"><apex:commandButton onclick="saveEditPage();" value="{!tm['Save']}" action="{!saveDoc}" status="statTop" styleClass="buttonStyle" style="background-color:{!customBtnBackgroundColor};color:{!customBtnTextColor};" rendered="{!NOT(createNewAttachmentEachEdit)}" /></td>
+                        <td style="padding-right: 2px;"><apex:commandButton onclick="saveEditPage();" value="{!tm['Save']}" action="{!createNewAttachment}" status="statTop" styleClass="buttonStyle" style="background-color:{!customBtnBackgroundColor};color:{!customBtnTextColor};" rendered="{!createNewAttachmentEachEdit}"/></td>
+                        <!-- custom save button -->
+                        <apex:outputPanel layout="none" rendered="{!customSaveType == CUSTOMSAVE_NEWBUTTON}">
+                          <td style="padding-right: 2px;"><apex:commandButton onclick="saveEditPage();" value="{!saveButtonName}" action="{!saveDocAndRedirect}" status="statTop" styleClass="buttonStyle" style="background-color:{!customBtnBackgroundColor};color:{!customBtnTextColor};" >
+                            <apex:param assignTo="{!didSave}" value="true" />  
+                          </apex:commandButton></td>
+                        </apex:outputPanel>
+                        <td style="padding-right: 2px;"><apex:commandButton value="{!tm['Preview Last Save']}" onclick="openPreviewPage();" styleClass="buttonStyle" oncomplete="" style="padding-left: 10px; padding-right: 10px;" /></td>
+                        <td style="padding-right: 2px;"><apex:commandButton value="{!tm['Revert Last Save']}" action="{!revertLastSave}" disabled="{!disableRevertButton}" status="statTop" styleClass="buttonStyle" style="padding-left: 10px; padding-right: 10px;" rendered="{!NOT(createNewAttachmentEachEdit)}"/></td>
+                        <td style="padding-right: 2px;">
+                          <apex:outputPanel rendered="{!NOT(sdeditSameTab || returnToRecord)}">
+                            <apex:commandButton onclick="closeEditPage();"  value="{!tm['Close']}" styleClass="buttonStyle" rendered="{!isMobileTheme}" oncomplete="" />
+                          </apex:outputPanel>
+                          <apex:outputPanel rendered="{!sdeditSameTab || returnToRecord}">
+                            <apex:commandButton value="{!tm['Return To Record']}" styleClass="buttonStyle" action="{!returnToRecordSDEdit}" />
+                          </apex:outputPanel>
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
+            </apex:outputPanel> 
+            <apex:outputPanel id="emailSubPanel" >
+              <apex:outputpanel id="loading" rendered="{!EmailTo=='Loading...'}">
+              <center><img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;please wait...</center>
+              </apex:outputpanel>
+              </apex:outputPanel>
+              <apex:outputPanel id="editor">
+              <apex:pageBlockSection columns="1" rendered="{!allowEdit}">
+                <style>
+                  .ddsmPageBlockTableHeader {display:none;}
+                </style>
+                <br />
+                <apex:pageBlockTable value="{!ddsl}" var="dd" headerClass="ddsmPageBlockTableHeader">
+                  <apex:column rendered="{!dd.sectionData != null}">
+                    <apex:outputPanel >
+                      <div style="font-size: 14px; font-weight:bold; padding-bottom: 4px;">{!ddslSectionLabelsMap[dd.sectionName]}:</div>
+                      <apex:inputTextarea value="{!dd.sectionData}" styleClass="ckeditor1" />
+                      <br /><br /><br />
+                    </apex:outputPanel>
+                  </apex:column>
+                </apex:pageBlockTable>
+              </apex:pageBlockSection>
+            </apex:outputPanel>        
+            </apex:pageBlock>
+
+            <apex:actionFunction name="redirectToSDCreateMobile" action="{!mobileSDEditRedirect}" />
+
+          </apex:form>
+  </apex:outputPanel>
+  <apex:outputPanel rendered="{!NOT(allowEditWhitelist)}">
+    <apex:form >
+        <apex:actionFunction name="redirectToRecord" action="{!returnToRecordSDEdit}" />
+    </apex:form>
+    <script>
+      alert("You do not have edit access to this document. You will now be redirected back to the record.");
+      redirectToRecord();
+    </script>
+  </apex:outputPanel>
+</body>
+<script type="text/javascript">
+rebind = function() {
+    var CKEDITOR   = window.CKEDITOR;
+        for ( var i in CKEDITOR.instances ){
+            var currentInstance = i;
+             break;
+        }
+        delete CKEDITOR.instances[currentInstance];
+        bind();
+    };
+
+bind = function(){
+        var CKEDITOR_BASEPATH = '{!URLFOR($Resource.SDOC__ckEditor,'ckeditor/')}';
+        CKEDITOR.editorConfig = function( config )
+            {
+            config.height = '100%';
+            config.disableNativeSpellChecker = false;
+            // Define changes to default configuration here. For example:
+            config.language = 'en';
+            config.filebrowserBrowseUrl = '{!$Page.SDOC__SDFileList}';
+            config.filebrowserUploadUrl = '{!$Page.SDOC__SDFileUpload}';
+            config.filebrowserImageBrowseUrl = '{!$Page.SDOC__SDFileList}';
+            config.filebrowserImageUploadUrl = '{!$Page.SDOC__SDFileUpload}' + '?isImageUpload=true'; 
+            config.enterMode = CKEDITOR.ENTER_BR;
+            config.shiftEnterMode = CKEDITOR.ENTER_P;
+            config.allowedContent = true;
+//            config.fullPage = true;
+            config.removePlugins = 'liststyle,tabletools,scayt,menubutton,contextmenu';
+            var imageBar = '{!isMobileTheme}' == 'true' ? ['PageBreak'] : ['Image', 'PageBreak'];
+            config.toolbar =
+            [
+            ['Undo','Redo'],
+            ['Styles','Format','Font','FontSize'],
+            ['TextColor','BGColor'],        
+            ['Bold','Italic','Underline','Strike','-',],
+            imageBar,
+            ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock']
+            ];
+            };
+        
+        if (!document.getElementsByClassName) {
+            document.getElementsByClassName = function (cn) { 
+                var rx = new RegExp("(?:^|\\s)" + cn+ "(?:$|\\s)");
+                var allT = document.getElementsByTagName("*"), allCN = [], ac="", i = 0, a;
+                    while (a = allT[i=i+1]) {
+                      ac=a.className;
+                      if ( ac && ac.indexOf(cn) !==-1) {
+                        if(ac===cn){ allCN[allCN.length] = a; continue;   }
+                        rx.test(ac) ? (allCN[allCN.length] = a) : 0;
+                      }
+                    }
+                return allCN;
+            }
+        }
+        
+        if (document.getElementsByClassName){
+            var e = document.getElementsByClassName( 'ckeditor1' );
+            for(var i=0;i<e.length;i++)
+                {
+                  var editor1 = CKEDITOR.replace( e[i],
+                          {  
+                            on:
+                            {
+                              instanceReady: function(ev)
+                              {
+                                setTimeout(resizeEditor, 500);
+                              }
+                              
+                            },
+                            on:
+                            {
+                              paste: function(ev) {
+                                if ('{!paramLinebreak}' === 'paragraph') {
+                                  if (ev.data.dataValue !== 'undefined') {
+                                    ev.data.dataValue = ev.data.dataValue.replace(/(\<br ?\/?\>)+/gi, '<p>');
+                                  }
+                                }
+                              }
+                            }
+                          });
+                }
+           }
+        };
+    
+windowonload = function() {
+  bind();
+}
+
+window.onresize = function() {
+  resizeEditor();
+}
+
+addEvent(window, 'load', function(){ windowonload() });
+function addEvent(element, event, fn) {
+    if (element.addEventListener)
+        element.addEventListener(event, fn, false);
+    else if (element.attachEvent)
+        element.attachEvent('on' + event, fn);
+}
+
+saveEventOverride = false;
+
+function checkForChanges() {
+  if(!saveEventOverride) {
+    var ck = CKEDITOR;
+    for (var i in ck.instances) {
+      var dirty = ck.instances[i].checkDirty();
+      if (dirty) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+window.onbeforeunload = function() {
+  return checkForChanges() ? "You have unsaved changes, do you want to close without saving?" : undefined;
+};
+
+/* -------------------------------- Start Image Upload Functionality -------------------------------- */
+function uploadImage(uploadInput) {
+    var iframe = null;
+    var ckeIndex = 0;
+    // if the given uploadInput does not exist, we have the wrong iframe
+    if (uploadInput === null) {
+        // get all of the iframes and find the one that gives a valid uploadInput
+        var iframes = document.querySelectorAll('iframe[id$="fileInput"]');
+        for (var i = iframes.length - 1; i >= 0; i--) {
+            var tempUploadInput = getUploadInputWithIframe(iframes[i]);
+            if (tempUploadInput !== null) {
+                uploadInput = tempUploadInput;
+                iframe = iframes[i];
+                ckeIndex = i;
+                break;
+            }
+        }
+    }
+
+    // Get the file the user selected and convert it to a base64-encoded string
+    var fileToUpload = uploadInput.files[0];
+    var reader = new FileReader();
+    reader.readAsDataURL(fileToUpload);
+
+    // Use JavaScript remoting to send the filename and base64-encoded file body to
+    // the uploadImage function in the SDTemplateEditor class, where the image
+    // will be uploaded as a Salesforce Document
+    reader.onload = function () {
+        var documentName = fileToUpload.name;
+        var documentBody = reader.result;
+        documentBody = documentBody.substring(documentBody.indexOf(",") + 1);
+        Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SDEmailController.uploadImageAndReturn}',
+            documentName, documentBody,
+            function (result, event) { // Callback for the JS Remoting function.
+                // Write the status of the SDTemplateEditor.uploadImage method to the page
+                if (event.status) {
+                    alert("Image successfully uploaded and made externally available.");
+                } else if (event.type === 'exception') {
+                    alert(event.message);
+                } else {
+                    alert(event.message);
+                }
+
+                // Hide Choose File at the end so ckEditor lets you exit the dialog without
+                // a "You changed some options..." popup
+                if (iframe === null) {
+                    iframe = document.querySelector('iframe[id$="fileInput"]');
+                }
+                var innerDoc = iframe.contentDocument || iframe.contentWindow.document;
+                var uploadInput = innerDoc.querySelector('input[id$="fileInput_input"]');
+                var newInput = document.createElement("button");
+                newInput.type = "file";
+                newInput.id = "sdocsFileInput";
+                newInput.style = "display: none;";
+                replaceElement(uploadInput, newInput);
+
+                // Hide upload button after uploading
+                document.getElementById("newUploadBtn").style = "display: none;";
+
+
+                var imageUrl = result['imageURL'];
+                //get all text input fields on CKEditor
+                var textInputs = document.querySelectorAll('input[id$="textInput"]');
+                /* Each CKEditor has 4 textinput fields, specified below
+                [0]: URL
+                [1]: Alternative Text
+                [2]: Width
+                [3]: Height
+                If there are multiple CKEditors on the page, multiply the CKEditor 
+                index by 4 to get correct URL input field */
+                var imageURLInput = textInputs[ckeIndex * 4];
+                imageURLInput.value = imageUrl.replace('#AMP#', '&');
+            }
+        );
+    };
+    reader.onerror = function (error) {
+        alert("Error uploading image.");
+    };
+}
+
+// A small window appears after clicking "Send it to the Server". Replace this with
+// an element that contains the status of the image pending upload
+function removePostUploadWindow() {
+    var start = Date.now();
+    var elapsed = 0;
+    while (elapsed < 2000) {
+        var iframeToDelete = document.querySelector('iframe[id$="_fileInput"]');
+        if (iframeToDelete !== null) {
+            break;
+        }
+        elapsed = Date.now() - start;
+    }
+
+    var statusMessage = document.createElement("span");
+    statusMessage.id = "image-upload-status-message";
+    statusMessage.innerHTML = "Image Uploading...";
+    iframeToDelete.parentNode.replaceChild(statusMessage, iframeToDelete);
+}
+
+function replaceElement(elementToReplace, replacement) {
+    elementToReplace.parentNode.replaceChild(replacement, elementToReplace);
+}
+
+// Replaces CKEditor's standard image upload button
+// functionality with code that will upload the image to Salesforce via JavaScript Remoting
+function addSalesforceFunctionalityToCKEditorImageButton() {
+    try { 
+        var uploadInput; 
+        var sendToServerBtn;
+        uploadInput = getUploadInput();
+        sendToServerBtn = document.querySelector('a[class*="cke_dialog_ui_fileButton cke_dialog_ui_button"]') || document.getElementById("newUploadBtn");
+        if (sendToServerBtn !== null && sendToServerBtn !== undefined) {
+            // Overwrite class and id of this button to overwrite standard ckEditor functionality
+            sendToServerBtn.class = "new-class";
+            sendToServerBtn.id = "new-id";
+            /*
+            if (newBtn === null) {
+                newBtn = document.createElement("button");
+                newBtn.id = "newUploadBtn";
+                newBtn.innerHTML = 'Upload Image';
+                newBtn.style = newBtnStyle
+                newBtn.onclick = function() { uploadImage(uploadInput); };
+                replaceElement(sendToServerBtn, newBtn);
+            }
+            else {
+                newBtn.style = newBtnStyle + " display: inline-block;";
+            }
+            */
+            
+            // Replace old Send To Server button with our own.
+            // This means that when the user clicks "Upload Image", our own JS code
+            // for uploading images will run.
+            var newBtnStyle = 'background-color: #4CAF50; padding: 6px 12px; color: #FFF; display: inline-block';
+            var newBtn = document.getElementById("newUploadBtn");
+            if (newBtn === null) {
+                newBtn = document.createElement("button");
+                newBtn.id = "newUploadBtn";
+                newBtn.innerHTML = 'Upload Image';
+                newBtn.onclick = function() { uploadImage(uploadInput); };
+            }
+            newBtn.style = newBtnStyle;
+            replaceElement(sendToServerBtn, newBtn);
+            
+        }
+    } catch(err) {}
+}
+
+// Image Upload in ckEditor appears in an iframe
+// finds iframe, gets document within it, and returns the file input element
+function getUploadInput() {
+    var iframe; 
+    var innerDoc; 
+    var uploadInput;
+    iframe = document.querySelector('iframe[id$="fileInput"]');
+    if (iframe === null) {
+        innerDoc = document;
+    } else {
+        innerDoc = iframe.contentDocument || iframe.contentWindow.document; 
+    }
+    uploadInput = innerDoc.querySelector('input[id$="fileInput_input"]');
+    return uploadInput;
+}
+
+// Given the iframe, gets document within it, and returns the file input element
+// Used to loop through different iframes to find the one non-null file input
+function getUploadInputWithIframe(iframe) {
+    var innerDoc; 
+    var uploadInput;
+    console.log(iframe);
+    //iframe = document.querySelector('iframe[id$="fileInput"]');
+    innerDoc = iframe.contentDocument || iframe.contentWindow.document; 
+    uploadInput = innerDoc.querySelector('input[id$="fileInput_input"]');
+    return uploadInput;
+}
+
+
+function addUploadFunctionalityOnImageBtnClick() {
+    // Get the Upload Image buttons in each instance of CKEditor (Template Body, Header1, Header2, Footer1, Footer2)
+    // and for each button, add an onclick function that will replace CKEditor's standard image upload button
+    // functionality with code that will upload the image to Salesforce via JavaScript Remoting
+    var ckEditorUploadImageButtons = document.querySelectorAll('a[class="cke_button cke_button__image cke_button_off"]');
+    for (var i = 0; i < ckEditorUploadImageButtons.length; i++) {
+        ckEditorUploadImageButtons[i].addEventListener(
+            'click', 
+            function() {
+                // Change out the button half a second after the "image" button is clicked in the editor
+                setTimeout( function() { addSalesforceFunctionalityToCKEditorImageButton() }, 500);
+            },
+            false
+        );
+    }
+    // After some time, stop the looping of calling this function
+    setTimeout( function() { clearInterval(addUploadInterval) }, 4000);
+}
+
+/* 
+  Interval is set to fire every half second, is killed 4 seconds after the first one succeeds by
+  clear interval call in addUploadFunctionalitynImageBtnClick. This is intended to catch all of the ckEditors
+  even if they take a while to load. Not certain if this will take care of all race
+  conditions, a very very slow org could still end up getting the old "Send it to the server" button if it takes
+  longer than 4-6 seconds to load, however this no longer gives me issues on lightning or classic. A guaranteed
+  fix would involve running the interval endlessly, so even the slowest orgs will still get the correct button
+  eventually. It is not clear to me what the best way to check for "success" would be to turn the interval off, 
+  however that would be another good way to approach this.
+*/
+var addUploadInterval = setInterval( function() { addUploadFunctionalityOnImageBtnClick(); }, 500 );
+addEvent(window, 'load', function(){ addUploadInterval });
+
+/* -------------------------------- Start Image Upload Functionality -------------------------------- */
+</script>
+<apex:form >
+<apex:actionFunction name="attach" action="{!updateAtt}"  
+                    status="stat1"/>
+</apex:form>
+</apex:page>

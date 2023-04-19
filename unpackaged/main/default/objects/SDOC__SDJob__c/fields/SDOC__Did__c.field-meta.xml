@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Did__c</fullName>
+    <deprecated>false</deprecated>
+    <description>(Optional) A comma delimited list of SFDC Document IDs (from Documents Tab) that will be included in any outbound email.</description>
+    <encryptionScheme>None</encryptionScheme>
+    <externalId>false</externalId>
+    <inlineHelpText>(Optional) A comma delimited list of SFDC Document IDs (from Documents Tab) that will be included in any outbound email.</inlineHelpText>
+    <label>Incl. Documents with Email</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

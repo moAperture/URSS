@@ -1,0 +1,9 @@
+<!-- readOnly=true bumps query limit up from 50000 to 1 million -->
+<apex:page controller="SDOC.SDTranslate"
+  contentType="application/json" showHeader="false" sidebar="false"
+  language="{!language}"      
+  standardStylesheets="false" 
+  readOnly="true"
+  action="{!runQuery}">
+{!serializedQueryResults}
+</apex:page>

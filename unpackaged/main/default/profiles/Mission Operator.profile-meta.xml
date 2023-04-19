@@ -24,12 +24,22 @@
         <visible>true</visible>
     </applicationVisibilities>
     <applicationVisibilities>
+        <application>SDOC__S_Docs</application>
+        <default>false</default>
+        <visible>false</visible>
+    </applicationVisibilities>
+    <applicationVisibilities>
         <application>Sales_Leadership</application>
         <default>false</default>
         <visible>false</visible>
     </applicationVisibilities>
     <applicationVisibilities>
         <application>Sales_Operations</application>
+        <default>false</default>
+        <visible>false</visible>
+    </applicationVisibilities>
+    <applicationVisibilities>
+        <application>sortablegrid__Sortable_Data_Grids</application>
         <default>false</default>
         <visible>false</visible>
     </applicationVisibilities>
@@ -1396,6 +1406,16 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>SDOC__SDRelationship__c.Mission__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>SDOC__SDRelationship__c.Traveler__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>ServiceContract.AccountId</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -2640,6 +2660,21 @@
     <layoutAssignments>
         <layout>WorkThanks-Thanks Layout</layout>
     </layoutAssignments>
+    <layoutAssignments>
+        <layout>sortablegrid__SDGDefaults__mdt-sortablegrid__Main</layout>
+    </layoutAssignments>
+    <layoutAssignments>
+        <layout>sortablegrid__SDG_Action__c-sortablegrid__SDG Action Layout</layout>
+    </layoutAssignments>
+    <layoutAssignments>
+        <layout>sortablegrid__SDG_Field__c-sortablegrid__Field Layout</layout>
+    </layoutAssignments>
+    <layoutAssignments>
+        <layout>sortablegrid__SDG__c-sortablegrid__SDG Layout</layout>
+    </layoutAssignments>
+    <layoutAssignments>
+        <layout>sortablegrid__sdg_Preferences__c-sortablegrid__Sortable Data Grid Preference Layout</layout>
+    </layoutAssignments>
     <objectPermissions>
         <allowCreate>false</allowCreate>
         <allowDelete>true</allowDelete>
@@ -2746,8 +2781,20 @@
         <visibility>DefaultOn</visibility>
     </tabVisibilities>
     <tabVisibilities>
+        <tab>SDOC__SDConfig</tab>
+        <visibility>Hidden</visibility>
+    </tabVisibilities>
+    <tabVisibilities>
         <tab>Traveler__c</tab>
         <visibility>DefaultOn</visibility>
+    </tabVisibilities>
+    <tabVisibilities>
+        <tab>efl__Enhanced_Files_List_Configuration</tab>
+        <visibility>Hidden</visibility>
+    </tabVisibilities>
+    <tabVisibilities>
+        <tab>sortablegrid__SDG__c</tab>
+        <visibility>Hidden</visibility>
     </tabVisibilities>
     <tabVisibilities>
         <tab>standard-Account</tab>

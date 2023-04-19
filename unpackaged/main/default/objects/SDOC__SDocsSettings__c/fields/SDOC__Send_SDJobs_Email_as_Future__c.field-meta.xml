@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Send_SDJobs_Email_as_Future__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <externalId>false</externalId>
+    <inlineHelpText>Checking this button will make emails sent out through S-Docs Jobs be sent through a future method. This allows the generated documents to be attached to the email record.</inlineHelpText>
+    <label>Send SDJobs Email as Future</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

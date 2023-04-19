@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__RunAs__c</fullName>
+    <defaultValue>$User.Username</defaultValue>
+    <deprecated>false</deprecated>
+    <description>User who will generate/email the generated docs. Value should be the user&#39;s unique salesforce login name (in the form of an email address) - NOT the SFDC ID or user&#39;s email. Remote App must be configured per the set-up documentation to use this feature.</description>
+    <encryptionScheme>None</encryptionScheme>
+    <externalId>false</externalId>
+    <inlineHelpText>User who will generate/email the generated docs. Value should be the user&#39;s unique salesforce login name (in the form of an email address) - NOT the SFDC ID or user&#39;s email. Remote App must be configured per the set-up documentation to use this feature.</inlineHelpText>
+    <label>Run As User</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

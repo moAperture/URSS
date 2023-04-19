@@ -1,0 +1,12 @@
+<apex:page standardController="SDOC__SDJob__c" showHeader="false"
+extensions="SDOC.SDUtil"
+recordSetVar="selected"
+action="{!deleteSelectedJobs}">
+  <div style="display:none;">
+    <apex:pageBlock >
+      <apex:pageBlockTable value="{!selected}" var="r">
+        <apex:column value="{!r.Id}" />
+      </apex:pageBlockTable>
+    </apex:pageBlock>
+  </div>
+</apex:page>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Keep_Span_Tags_When_Using_Job_Splitters__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <description>This field previously was &quot;Keep Span Tags When Using Job Splitters&quot; and was deprecated in version 4.217</description>
+    <externalId>false</externalId>
+    <inlineHelpText>This field previously was &quot;Keep Span Tags When Using Job Splitters&quot; and was deprecated in version 4.217</inlineHelpText>
+    <label>(Deprecated Setting)</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Active__c</fullName>
+    <defaultValue>true</defaultValue>
+    <deprecated>false</deprecated>
+    <description>Once checked, this template is visible for new document creation. Do NOT delete or modify template once activated, as they are needed to display previously created documents correctly. Instead, make changes in clone and then mark this one inactive.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Once checked, this template is visible for new document creation. Do NOT delete or modify template once activated, as they are needed to display previously created documents correctly. Instead, make changes in clone and then mark this one inactive.</inlineHelpText>
+    <label>Available For Use</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

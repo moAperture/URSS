@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Email_ReturnToRecord__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <description>Upon document generation, the user will be auto-forwarded back to the record detail page.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Upon document generation, the user will be auto-forwarded back to the record detail page.</inlineHelpText>
+    <label>Redirect Back To Record</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

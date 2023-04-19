@@ -1,0 +1,246 @@
+<apex:page controller="SDOC.SDConfig" lightningStylesheets="true">
+  <apex:outputPanel rendered="{!NOT(isTranslations)}">
+    <apex:form >
+      <apex:pageBlock title="S-Sign Setup" rendered="{!ssignInstalled}">
+        <table>
+          <tr>
+            <td>
+              <apex:commandButton value="Go To S-Sign Setup Page 🡢" action="{!loadSSConfigPage}" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top: 12px;">
+              <apex:commandButton value="Go To S-Sign License Key Page 🡢" action="{!loadSSLicensesPage}" />
+            </td>
+          </tr>
+        </table>
+      </apex:pageBlock>
+      <apex:pageBlock title="S-Docs License Key">
+        <apex:commandButton value="Go To S-Docs License Key Page 🡢" action="{!loadSDLicensesPage}" />
+      </apex:pageBlock>
+      <apex:pageBlock title="Migrate S-Docs & S-Sign Templates">
+        <apex:commandButton action="{!loadSDMigratePage}" value="Go To S-Docs Migration Page 🡢" />
+      </apex:pageBlock>
+      <apex:pageBlock title="Translate Data/UI">
+        <table>
+          <tr>
+            <td>
+              <apex:commandButton action="{!loadSDocsTranslate}" value="Go To S-Docs Translation Page 🡢" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top: 12px;">
+              <apex:commandButton action="{!loadSSignTranslate}" value="Go To S-Sign Translation Page 🡢" rendered="{!ssignInstalled}" />
+            </td>
+          </tr>
+        </table>
+      </apex:pageBlock>
+      <apex:pageBlock title="Other Pages">
+        <table>
+          <tr>
+            <td>
+              <apex:commandButton action="{!loadSDAuthGoogleDrivePage}" value="Go To Google Drive Integration Page 🡢" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top: 12px;">
+              <apex:commandButton action="{!loadSDAuthSharePointPage}" value="Go To Microsoft SharePoint Integration Page 🡢" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top: 12px;">
+              <apex:commandButton action="{!loadSDAuthAWSS3Page}" value="Go To AWS S3 Integration Page 🡢" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top: 12px;">
+              <apex:commandButton action="{!loadSDAuthSendGridPage}" value="Go To SendGrid Integration Page 🡢" />
+            </td>
+          </tr>
+          <!--<tr>
+            <td style="padding-top: 12px;">
+              <apex:commandButton action="{!loadSDAuditPage}" value="Go To S-Docs Audit Page 🡢" />
+            </td>
+          </tr>-->
+          <tr>
+            <td style="padding-top: 12px;">
+              <apex:commandButton action="{!loadBulkDOCXUploadPage}" value="Go To Bulk DOCX Upload Page 🡢" />
+            </td>
+          </tr>
+          <!--<tr>
+            <td style="padding-top: 12px;">
+              <apex:commandButton action="{!loadBulkDOCXConversionPage}" value="Go To Bulk Conversion UpGo To Page 🡢" />
+            </td>
+          </tr>-->
+        </table>
+      </apex:pageBlock>
+      <apex:pageBlock title="Update Templates" id="update-templates-panel" rendered="{!showUpdateTemplates}">
+        <apex:commandButton action="{!updateAllActiveTemplates}" 
+          value="Update All Active S-Docs Templates"
+          reRender="update-templates-panel" oncomplete="alert('All active S-Docs Templates have been updated');" />
+      </apex:pageBlock>
+      <apex:pageBlock title="Other Settings" id="other-settings-panel">
+        <apex:pageBlockButtons location="bottom">
+          <apex:commandButton action="{!updateCustomSettingsTemplate}" 
+          value="Update Settings" 
+          reRender="other-settings-panel" oncomplete="alert('S-Docs Custom Settings template updated');" />
+        </apex:pageBlockButtons>
+        <!-- Use parameter "advancedSettings=true" to access certain options -->
+        <apex:pageBlockSection >
+          <apex:pageBlockSectionItem rendered="{!showAdvanced}">
+            <apex:outputLabel value="Use Legacy DOC formatting" />
+            <apex:inputCheckbox value="{!legacyDOC}" />
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+            <apex:outputLabel value="Whitelisted Profiles For Document Editing" />
+            <apex:inputTextarea value="{!allowEditWhitelist}"  />
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+            <apex:outputLabel value="Custom Message to Display on Email Page" />
+            <apex:inputTextarea value="{!customEmailMessage}" />
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+            <apex:outputLabel value="Do Not Include Extensions In File Names" />
+            <apex:inputCheckbox value="{!doNotUseFileExtensions}"  />
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+      </apex:pageBlock>
+    </apex:form>
+  </apex:outputPanel>
+  <apex:outputPanel id="translationPanel"  rendered="{!isTranslations}">
+    <style>
+      .section-name {
+        float: left;
+        /* font-size: medium; */
+        font-weight: bold;
+      }
+
+      .x-image:hover {
+        cursor: pointer;
+      }
+    </style>
+    <apex:form >
+      <apex:commandButton value="🡠 Return to S-Docs Setup" action="{!reloadDefaultSDConfigScreen}" />
+      <br />
+      <br />
+      <apex:outputPanel >
+        <apex:pageBlock title="Choose {!productName} Translation To Edit">
+          <apex:outputPanel rendered="{!showLanguagePicklist}">
+            <apex:selectList value="{!languagePicklist}" size="1">
+              <apex:selectOptions value="{!languages}" />
+            </apex:selectList>
+            <apex:commandButton value="Edit the translations for this language"
+            action="{!loadTranslationTemplates}"
+            reRender="translationPanel" />
+          </apex:outputPanel>
+          <br />
+          <apex:actionFunction name="rerenderCreateNewBtn" action="{!doNothing}" reRender="createNewBtn" />
+          <apex:inputText value="{!languageInputText}" onkeyup="rerenderCreateNewBtn();" />
+          <apex:commandButton value="Define new translations for this language" 
+          id="createNewBtn"
+          action="{!createNewTranslationTemplates}"
+          disabled="{!languageInputText == ''}"
+          reRender="translationPanel" />
+        </apex:pageBlock>
+      </apex:outputPanel>
+      <apex:outputPanel rendered="{!choseLanguage}">
+        <apex:outputText style="font-size: large; font-weight: bold;" value="Translate {!productName}: {!language}" />
+        <apex:commandButton value="Save" action="{!saveTranslationTemplates}"
+          oncomplete="alert('Saved translation settings');"
+          reRender="translationPanel" 
+          style="position: absolute; left: 50%; transform: translateX(-50%);"
+        />
+        <br /> <br />
+        <apex:outputPanel style="width: 50%; float: left;">
+          <apex:pageBlock title="UI Translations">
+            <apex:pageBlockTable value="{!translationKeys}" var="key">
+              <apex:column >
+                <table>
+                  <tr>
+                    <td style="width:400px; padding-right: 24px;">
+                      <apex:outputText value="{!key}" />
+                    </td>
+                    <td style="width:400px;">
+                      <apex:inputTextarea value="{!translationMap[key]}" style="width: 400px; height: 48px;" rendered="{!NOT(BEGINS(translationMap[key], 'START TRANSLATIONS'))}" />
+                    </td>
+                  </tr>
+                </table>
+              </apex:column>
+            </apex:pageBlockTable>
+          </apex:pageBlock>
+        </apex:outputPanel>
+        <apex:outputPanel style="width: 50%; float: right;">
+          <apex:pageBlock title="Data Translations">
+            <apex:pageBlockButtons location="bottom">
+              <apex:commandButton value="Add New Section" action="{!showAddSectionBox}" reRender="translationPanel" rendered="{!NOT(shouldShowAddSectionBox)}" />
+              <apex:outputPanel rendered="{!shouldShowAddSectionBox}">
+                <apex:outputText value="Enter new section name: " />
+                <apex:inputText value="{!newSectionName}" label="New Section Name: "/>
+                <apex:commandButton value="Add Section" action="{!addNewDataSection}" reRender="translationPanel" style="margin-left: 10px;" />
+                <apex:commandButton value="Cancel" action="{!cancelAddNewDataSection}" reRender="translationPanel" style="margin-left: 10px;" />
+              </apex:outputPanel>
+            </apex:pageBlockButtons>
+            <apex:pageBlockTable value="{!dataTranslationSectionKeys}" var="section">
+              <apex:column >
+                <div style="text-align: right;">
+                  <apex:outputText styleClass="section-name" value="{!section}" />
+                  <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'down.gif')}" height="20" styleClass="x-image" rendered="{!NOT(shouldShowSectionTranslations[section])}" onclick="showSection('{!section}');"/>
+                  <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'up.gif')}" height="20" styleClass="x-image" rendered="{!shouldShowSectionTranslations[section]}" onclick="hideSection('{!section}');"/>
+                  <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'x.gif')}" height="20" styleClass="x-image" onclick="if (window.confirm('Are you sure you want to remove data translation section {!section}?')) removeSection('{!section}');"/>
+                </div>
+                <hr />
+                <apex:outputPanel rendered="{!shouldShowSectionTranslations[section]}">
+                  <apex:pageBlockTable value="{!dataTranslationKeys[section]}" var="key">
+                    <apex:column >
+                      <table>
+                        <tr>
+                          <td style="width:400px; padding-right: 24px;">
+                            <apex:outputText value="{!key}" />
+                          </td>
+                          <td style="width:400px;">
+                            <apex:inputTextarea value="{!dataTranslationMap[section][key]}" style="width: 400px; height: 48px;" />
+                          </td>
+                          <td style="width: 50px;">
+                            <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'x.gif')}" height="20" styleClass="x-image" onclick="if (window.confirm('Are you sure you want to remove data translation field {!key}?')) removeField('{!section}', '{!key}');"/>
+                          </td>
+                        </tr>
+                      </table>
+                    </apex:column>
+                  </apex:pageBlockTable>
+                  <apex:outputPanel rendered="{!NOT(shouldShowAddFieldBox[section])}">
+                    <apex:commandButton action="{!showAddFieldBox}" value="Add New Field" reRender="translationPanel" >
+                      <apex:param name="thisSection" value="{!section}" assignTo="{!thisSection}"/>
+                    </apex:commandButton>
+                  </apex:outputPanel>
+                  <apex:outputPanel rendered="{!shouldShowAddFieldBox[section]}">
+                    <apex:outputText value="Enter new field name: " />
+                    <apex:inputText value="{!newFieldName}" label="New Field Name: "/>
+                    <apex:commandButton value="Add Field" action="{!addNewDataField}" reRender="translationPanel" style="margin-left: 10px;">
+                      <apex:param name="thisSection" value="{!section}" assignTo="{!thisSection}" />
+                    </apex:commandButton>
+                    <apex:commandButton value="Cancel" action="{!cancelAddNewDataField}" reRender="translationPanel" style="margin-left: 10px;">
+                      <apex:param name="thisSection" value="{!section}" assignTo="{!thisSection}" />
+                    </apex:commandButton>
+                  </apex:outputPanel>
+                </apex:outputPanel>
+              </apex:column>
+            </apex:pageBlockTable>
+            <apex:actionFunction name="showSection" action="{!showSectionTranslations}" reRender="translationPanel">
+              <apex:param name="thisSection" value="" assignTo="{!thisSection}" />
+            </apex:actionFunction>
+            <apex:actionFunction name="hideSection" action="{!hideSectionTranslations}" reRender="translationPanel">
+              <apex:param name="thisSection" value="" assignTo="{!thisSection}" />
+            </apex:actionFunction>
+            <apex:actionFunction name="removeSection" action="{!removeSection}" reRender="translationPanel">
+              <apex:param name="thisSection" value="" assignTo="{!thisSection}" />
+            </apex:actionFunction>
+            <apex:actionFunction name="removeField" action="{!removeField}" reRender="translationPanel">
+              <apex:param name="thisSection" value="" assignTo="{!thisSection}" />
+              <apex:param name="thisField" value="" assignTo="{!thisField}" />
+            </apex:actionFunction>
+          </apex:pageBlock>
+        </apex:outputPanel>
+      </apex:outputPanel>
+    </apex:form>
+  </apex:outputPanel>
+</apex:page>

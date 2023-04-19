@@ -1,0 +1,10 @@
+<!-- action="{!initDML}" is critical here. See the MY MASTER COMMENT comment in SDTemplateController for an explanation. -->
+<apex:page standardController="SDOC__SDoc__c" extensions="SDOC.SDTemplateController" showheader="false"
+contentType="application/vnd.ms-powerpoint" cache="true" standardStylesheets="false" action="{!initDML}">
+<head>
+<apex:dynamicComponent componentValue="{!cfinal}" invokeAfterAction="true" />
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'SDoc.css')}" /> 
+</head>
+<apex:dynamicComponent componentValue="{!xfinal}" invokeAfterAction="true" />
+
+</apex:page>

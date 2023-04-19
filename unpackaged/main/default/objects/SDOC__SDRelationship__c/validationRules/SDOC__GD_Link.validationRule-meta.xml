@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__GD_Link</fullName>
+    <active>true</active>
+    <errorConditionFormula>AND(
+ ISPICKVAL(SDOC__SDoc_Rel_GD_Status__c, &#39;Linked to Google Doc&#39;)
+, 
+ISBLANK( SDOC__SDoc_Rel_GD_Link__c ) 
+)</errorConditionFormula>
+    <errorMessage>Before you are able to manually set the Docs Status to &quot;Linked to Google Doc&quot;, you must first enter a valid URL to an existing Google Doc in the Google Docs Link field.</errorMessage>
+</ValidationRule>

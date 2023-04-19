@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Email_Link__c</fullName>
+    <deprecated>false</deprecated>
+    <externalId>false</externalId>
+    <formula>If( AND (NOT(isblank(SDOC__GD_Link__c)),ISPICKVAL(SDOC__GD_Status__c, &#39;Linked to Google Doc&#39;) )
+,
+    HYPERLINK( SDOC__GD_Link__c,IMAGE(&quot;/img/google/gmail_M_icon.gif&quot;,&quot;View&quot;),&quot;_blank&quot;)
+,
+     IF(       AND(     SDOC__SDTemplate__r.SDOC__Email_Lock_SendTo__c  , 
+                          isblank(SDOC__SDTemplate__r.SDOC__Email_SendTo__c) 
+                     ) , IMAGE(&quot;/img/func_icons/util/lock12.gif&quot;,&quot;Restricted&quot;),
+
+        IF  (isblank(SDOC__ObjectType__c),&#39;&#39;,
+         /*LINK*/
+         HYPERLINK(
+LEFT($Api.Partner_Server_URL_260, FIND( &#39;/services&#39;, $Api.Partner_Server_URL_260)-1)&amp;
+                              IF(AND (NOT(isblank(SDOC__GD_Link__c)),ISPICKVAL(SDOC__GD_Status__c, &#39;Linked to Attachment&#39;) ) ,
+                               &quot;/apex/SDOC__SDRedirect?redirectPage=SDOC__SDEmail&amp;GenAtEmail=true&amp;SDId=&quot; &amp; Id,
+                                &quot;/apex/SDOC__SDRedirect?redirectPage=SDOC__SDEmail&amp;GenAtEmail=true&amp;SDId=&quot; &amp; Id
+                                 )
+                            ,IMAGE( &#39;/img/func_icons/util/mailCloseEnv16.gif&#39;,&#39;Email&#39;)
+                            , &quot;_self&quot;
+                            )/*HYPERLINK*/
+        )
+     )
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Email</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

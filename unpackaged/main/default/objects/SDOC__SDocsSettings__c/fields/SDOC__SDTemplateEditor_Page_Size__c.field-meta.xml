@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__SDTemplateEditor_Page_Size__c</fullName>
+    <deprecated>false</deprecated>
+    <description>This changes how many fields are displayed in the field picker for the Insert Field, Insert Related List, and Insert RENDER wizards on the SDTemplateEditor page</description>
+    <externalId>false</externalId>
+    <inlineHelpText>This changes how many fields are displayed in the field picker for the Insert Field, Insert Related List, and Insert RENDER wizards on the SDTemplateEditor page</inlineHelpText>
+    <label>SDTemplateEditor Page Size</label>
+    <precision>3</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

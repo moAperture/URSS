@@ -1,0 +1,1154 @@
+<apex:page controller="SDOC.SDCreateController" 
+tabStyle="SDOC__SDTemplate__c" standardstylesheets="true"
+sidebar="{!sidebar}"
+action="{!initStep2}"
+doctype="html-5.0"
+title="{!tm['Generate Documents']}"
+lightningStylesheets="true">
+
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'skin.css')}" />
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'Sdoc.css')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jquery-1.8.3.min.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, '/resources/js/preformatting.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__ckEditor,'/ckeditor/ckeditor.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'yahoo-dom-event.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'container-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'animation-min.js')}" />
+
+<!-- ================ START LIGHTNING_REDIRECT_PANEL ================ -->
+<apex:outputPanel id="lightning_redirect_panel">
+<script>
+if ('{!doLightningRedirect}' === 'true') {
+    if( (typeof sforce != 'undefined') && sforce && (!!sforce.one) ) {
+        sforce.one.navigateToURL('{!lightningRedirectURL}', true);
+    } else {
+        window.location.href = '{!URLFOR(lightningRedirectURL)}';
+    }
+}
+</script>
+</apex:outputPanel>
+<!-- ================= END LIGHTNING_REDIRECT_PANEL ================= -->
+
+<!-- Must be included to use sforce.console.isInConsole() -->
+<!-- Use version 30.0; isInConsole() doesn't work on version 40.0 -->
+<apex:includeScript value="/support/console/30.0/integration.js"/>
+
+<script type="text/javascript">
+// Hide Salesforce header if showheader=false is included in URL
+var hideHeader = function() {
+  var salesforceHeader = document.getElementById('AppBodyHeader');
+  if (salesforceHeader !== null) {
+    salesforceHeader.style.display = 'none';
+  }
+}
+
+var showHeader = '{!JSENCODE($CurrentPage.parameters.showHeader)}';
+if (showHeader === 'false' || showHeader === '0') {
+    hideHeader();
+}
+// End "Hide Salesforce header if showheader=false is included in URL"
+
+// Hide Salesforce header if user is invoking S-Docs from Sales Console.
+// This is finnicky as there are reported bugs with sforce.console.isInConsole();
+// if this is the case, have the user include &showHeader=false in their S-Docs button. 
+if (sforce.console.isInConsole()) {
+    hideHeader();
+}
+</script>
+
+<!-- ================================ Start User Choice Feature ================================ -->
+<script type="text/javascript">
+j$ = jQuery.noConflict();
+
+function addLoadEvent(func) {
+    addEvent('load', window, func);
+}
+
+function addEvent(evnt, elem, func) {
+   if (elem.addEventListener) {  // W3C DOM
+      elem.addEventListener(evnt,func,false);
+   } else if (elem.attachEvent) { // IE DOM
+      elem.attachEvent("on"+evnt, func);
+   } else {
+      elem[evnt] = func;
+   }
+}
+
+// Cross-browser event support
+function addEvent(evnt, elem, func) {
+   if (elem.addEventListener)  // W3C DOM
+      elem.addEventListener(evnt,func,false);
+   else if (elem.attachEvent) { // IE DOM
+      elem.attachEvent("on"+evnt, func);
+   }
+   else {
+      elem[evnt] = func;
+   }
+}
+
+// Whenever a user checks a box in a UserChoiceCheckbox or UserChoiceRelatedList,
+// this will disable all other checkboxes in that UserChoice if the user has selected
+// the max number of allowed checkboxes specified by that UserChoice
+function updateCheckboxes(templateId) {
+  // Building a map of template id to userChoiceCheckbox/userChoiceRelatedList for the checkboxes that appear
+
+  var currentCheckboxesMap = {};
+  for (var userChoiceNum = 0; userChoiceNum < document.querySelectorAll("*[class*='user-choice-checkbox-'],*[class*='user-choice-relatedlist-']").length; userChoiceNum++) {
+    var rtpCheckboxes = document.querySelectorAll("*[class*='user-choice-checkbox-'],*[class*='user-choice-relatedlist-']")[userChoiceNum];
+    var rtpCheckboxClass = rtpCheckboxes.attributes.class.nodeValue;
+    var splitList = rtpCheckboxClass.split('-');
+    var templateId = splitList[3];
+    var ucNumber = splitList[4];
+    if (currentCheckboxesMap.hasOwnProperty(templateId)) {
+      if (!currentCheckboxesMap[templateId].includes(ucNumber)) {
+        currentCheckboxesMap[templateId].push(ucNumber);
+      }
+    } else {
+      currentCheckboxesMap[templateId] = [ucNumber];
+    }
+  }
+  // Work through the map of checkboxes
+  for (const [templateId, ucNumberArray] of Object.entries(currentCheckboxesMap)) {
+    for (var i = 0; i < currentCheckboxesMap[templateId].length; i++) {
+      var ucNumber = currentCheckboxesMap[templateId][i];
+      var rtpCheckboxes = document.querySelectorAll(".user-choice-checkbox-" + templateId + "-" + ucNumber + ", .user-choice-relatedlist-" + templateId + "-" + ucNumber);
+      // First pass: get number of checkboxes checked
+      var numBoxesChecked = 0;
+      for (var checkboxIndex = 0; checkboxIndex < rtpCheckboxes.length; checkboxIndex++) {
+        if (rtpCheckboxes[checkboxIndex].checked) {
+          numBoxesChecked++;
+        }
+      }
+
+      // maxNumSelections for this UserChoiceCheckbox/UserChoiceRelatedList is 
+      // hidden within a span with class 'max-num-cbc-selections-(userChoice.userChoiceNum)' 
+      // or 'max-num-rl-selections-(userChoice.userChoiceNum)'. Grab it here.
+      var maxNumSelectionsContainer = document.querySelector(
+        "span[class*='max-num-cbc-selections-" + templateId + "-" + ucNumber + "'], " +
+        "span[class*='max-num-rl-selections-" + templateId + "-" + ucNumber + "']");
+      if (maxNumSelectionsContainer != null) {
+        var maxNumSelections = parseInt(maxNumSelectionsContainer.innerText);
+        // Loop through all the checkboxes for this UserChoice and disable the
+        // unchecked ones if the user has selected the max number of checkboxes
+        for (var checkboxIndex = 0; checkboxIndex < rtpCheckboxes.length; checkboxIndex++) {
+          var thisCheckbox = rtpCheckboxes[checkboxIndex];
+          if (numBoxesChecked >= maxNumSelections) {
+            if (!thisCheckbox.checked) { 
+              thisCheckbox.disabled = true;
+            }
+          }
+
+          // If max number of checked checkboxes for the UserChoice has not
+          // been reached (or has been reached but the user unchecked a box after it was reached),
+          // make all the checkboxes for this UserChoice clickable
+          else { 
+            thisCheckbox.disabled = false; 
+          }
+        }
+      }
+    }
+  }
+}
+
+function checkPreformattingText(event, index, format) {
+  let input = j$('.user-choice-text-input-' + index)[0];
+  let errorMessage = j$('.preformatting-error-message-' + index)[0];
+  checkPreformatting(event, format, input, errorMessage);
+}
+
+function checkPreformattingTextArea(event, index, format) {
+  let input = j$('.user-choice-text-area-input-' + index)[0];
+  let errorMessage = j$('.preformatting-error-message-' + index)[0];
+  checkPreformatting(event, format, input, errorMessage);
+}
+
+function addCKEditorToUserChoices(ckEditorConfig) {
+  var e = document.getElementsByClassName('ckeditor-user-choice');
+  for (var i = 0; i < e.length; i++) {
+    var a = CKEDITOR.dom.element.get(e[i].name);
+    if (!a.getEditor()) {
+      var editor1 = CKEDITOR.replace( 
+        e[i], 
+        ckEditorConfig
+      );
+    }
+  }
+}
+
+/* -------------------------------- Start Image Upload Functionality -------------------------------- */
+function uploadImage(uploadInput) {
+    var iframe = null;
+    var ckeIndex = 0;
+    // if the given uploadInput does not exist, we have the wrong iframe
+    if (uploadInput === null) {
+        // get all of the iframes and find the one that gives a valid uploadInput
+        var iframes = document.querySelectorAll('iframe[id$="fileInput"]');
+        for (var i = iframes.length - 1; i >= 0; i--) {
+            var tempUploadInput = getUploadInputWithIframe(iframes[i]);
+            if (tempUploadInput !== null) {
+                uploadInput = tempUploadInput;
+                iframe = iframes[i];
+                ckeIndex = i;
+                break;
+            }
+        }
+    }
+
+    // Get the file the user selected and convert it to a base64-encoded string
+    var fileToUpload = uploadInput.files[0];
+    var reader = new FileReader();
+    reader.readAsDataURL(fileToUpload);
+    // Use JavaScript remoting to send the filename and base64-encoded file body to
+    // the uploadImage function in the SDCreateController class, where the image
+    // will be uploaded as a Salesforce Document
+    reader.onload = function () {
+        var documentName = fileToUpload.name;
+        var documentBody = reader.result;
+        documentBody = documentBody.substring(documentBody.indexOf(",") + 1);
+        Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SDCreateController.uploadImageAndReturn}',
+            documentName, documentBody,
+            function (result, event) { // Callback for the JS Remoting function.
+                // Write the status of the SDCreateController.uploadImage method to the page
+                if (event.status) {
+                    alert("Image successfully uploaded and made externally available.");
+                } else if (event.type === 'exception') {
+                    alert(event.message);
+                } else {
+                    alert(event.message);
+                }
+
+                // Hide Choose File at the end so ckEditor lets you exit the dialog without
+                // a "You changed some options..." popup
+                if (iframe === null) {
+                    iframe = document.querySelector('iframe[id$="fileInput"]');
+                }
+                var innerDoc = iframe.contentDocument || iframe.contentWindow.document;
+                var uploadInput = innerDoc.querySelector('input[id$="fileInput_input"]');
+                var newInput = document.createElement("button");
+                newInput.type = "file";
+                newInput.id = "sdocsFileInput";
+                newInput.style = "display: none;";
+                replaceElement(uploadInput, newInput);
+
+                // Hide upload button after uploading
+                document.getElementById("newUploadBtn").style = "display: none;";
+                
+                var imageUrl = result['imageURL'];
+                //get all text input fields on CKEditor
+                var textInputs = document.querySelectorAll('input[id$="textInput"]');
+                /* Each CKEditor has 4 textinput fields, specified below
+                [0]: URL
+                [1]: Alternative Text
+                [2]: Width
+                [3]: Height
+                If there are multiple CKEditors on the page, multiply the CKEditor 
+                index by 4 to get correct URL input field */
+                var imageURLInput = textInputs[ckeIndex * 4];
+                imageURLInput.value = imageUrl.replace('#AMP#', '&');
+            }
+        );
+    };
+    reader.onerror = function (error) {
+        alert("Error uploading image.");
+    };
+}
+
+// A small window appears after clicking "Send it to the Server". Replace this with
+// an element that contains the status of the image pending upload
+function removePostUploadWindow() {
+    var start = Date.now();
+    var elapsed = 0;
+    while (elapsed < 2000) {
+        var iframeToDelete = document.querySelector('iframe[id$="_fileInput"]');
+        if (iframeToDelete !== null) {
+            break;
+        }
+        elapsed = Date.now() - start;
+    }
+
+    var statusMessage = document.createElement("span");
+    statusMessage.id = "image-upload-status-message";
+    statusMessage.innerHTML = "Image Uploading...";
+    iframeToDelete.parentNode.replaceChild(statusMessage, iframeToDelete);
+}
+
+function replaceElement(elementToReplace, replacement) {
+    elementToReplace.parentNode.replaceChild(replacement, elementToReplace);
+}
+
+// Replaces CKEditor's standard image upload button
+// functionality with code that will upload the image to Salesforce via JavaScript Remoting
+function addSalesforceFunctionalityToCKEditorImageButton() {
+    try { 
+        var uploadInput; 
+        var sendToServerBtn;
+        uploadInput = getUploadInput();
+        sendToServerBtn = document.querySelector('a[class*="cke_dialog_ui_fileButton cke_dialog_ui_button"]') || document.getElementById("newUploadBtn");
+        if (sendToServerBtn !== null && sendToServerBtn !== undefined) {
+            // Overwrite class and id of this button to overwrite standard ckEditor functionality
+            sendToServerBtn.class = "new-class";
+            sendToServerBtn.id = "new-id";
+            /*
+            if (newBtn === null) {
+                newBtn = document.createElement("button");
+                newBtn.id = "newUploadBtn";
+                newBtn.innerHTML = 'Upload Image';
+                newBtn.style = newBtnStyle
+                newBtn.onclick = function() { uploadImage(uploadInput); };
+                replaceElement(sendToServerBtn, newBtn);
+            }
+            else {
+                newBtn.style = newBtnStyle + " display: inline-block;";
+            }
+            */
+            
+            // Replace old Send To Server button with our own.
+            // This means that when the user clicks "Upload Image", our own JS code
+            // for uploading images will run.
+            var newBtnStyle = 'background-color: #4CAF50; padding: 6px 12px; color: #FFF; display: inline-block';
+            var newBtn = document.getElementById("newUploadBtn");
+            if (newBtn === null) {
+                newBtn = document.createElement("button");
+                newBtn.id = "newUploadBtn";
+                newBtn.innerHTML = 'Upload Image';
+                newBtn.onclick = function() { uploadImage(uploadInput); };
+            }
+            newBtn.style = newBtnStyle;
+            replaceElement(sendToServerBtn, newBtn);
+            
+        }
+    } catch(err) {}
+}
+
+// Image Upload in ckEditor appears in an iframe
+// finds iframe, gets document within it, and returns the file input element
+function getUploadInput() {
+    var iframe; 
+    var innerDoc; 
+    var uploadInput;
+    iframe = document.querySelector('iframe[id$="fileInput"]');
+    if (iframe === null) {
+        innerDoc = document;
+    } else {
+        innerDoc = iframe.contentDocument || iframe.contentWindow.document; 
+    }
+    uploadInput = innerDoc.querySelector('input[id$="fileInput_input"]');
+    return uploadInput;
+}
+
+// Given the iframe, gets document within it, and returns the file input element
+// Used to loop through different iframes to find the one non-null file input
+function getUploadInputWithIframe(iframe) {
+    var innerDoc; 
+    var uploadInput;
+    console.log(iframe);
+    //iframe = document.querySelector('iframe[id$="fileInput"]');
+    innerDoc = iframe.contentDocument || iframe.contentWindow.document; 
+    uploadInput = innerDoc.querySelector('input[id$="fileInput_input"]');
+    console.log(uploadInput);
+    return uploadInput;
+}
+
+
+function addUploadFunctionalityOnImageBtnClick() {
+    // Get the Upload Image buttons in each instance of CKEditor (Template Body, Header1, Header2, Footer1, Footer2)
+    // and for each button, add an onclick function that will replace CKEditor's standard image upload button
+    // functionality with code that will upload the image to Salesforce via JavaScript Remoting
+    var ckEditorUploadImageButtons = document.querySelectorAll('a[class="cke_button cke_button__image cke_button_off"]');
+    for (var i = 0; i < ckEditorUploadImageButtons.length; i++) {
+        ckEditorUploadImageButtons[i].addEventListener(
+            'click', 
+            function() {
+                // Change out the button half a second after the "image" button is clicked in the editor
+                setTimeout( function() { addSalesforceFunctionalityToCKEditorImageButton() }, 500);
+            },
+            false
+        );
+    }
+    // After some time, stop the looping of calling this function
+    setTimeout( function() { clearInterval(addUploadInterval) }, 4000);
+}
+
+/* 
+  Interval is set to fire every half second, is killed 4 seconds after the first one succeeds by
+  clear interval call in addUploadFunctionalitynImageBtnClick. This is intended to catch all of the ckEditors
+  even if they take a while to load. Not certain if this will take care of all race
+  conditions, a very very slow org could still end up getting the old "Send it to the server" button if it takes
+  longer than 4-6 seconds to load, however this no longer gives me issues on lightning or classic. A guaranteed
+  fix would involve running the interval endlessly, so even the slowest orgs will still get the correct button
+  eventually. It is not clear to me what the best way to check for "success" would be to turn the interval off, 
+  however that would be another good way to approach this.
+*/
+var addUploadInterval = setInterval( function() { addUploadFunctionalityOnImageBtnClick(); }, 500 );
+addEvent(window, 'load', function(){ addUploadInterval });
+
+/* -------------------------------- End Image Upload Functionality -------------------------------- */
+
+YAHOO.namespace("force.com");
+YAHOO.force.com.init = function() {
+        document.body.className = document.body.className + " yui-skin-sam";
+        var CKEDITOR   = window.CKEDITOR;
+        if (CKEDITOR.env.ie8){
+            YAHOO.force.com.myDialog = new YAHOO.widget.Panel(
+            "myPanel",
+            { width           :   "800px",visible         :   false,
+             draggable       :   true, close           :   false,  
+             modal           :   true,  fixedCenter     :   true,  zindex          :   100
+            });
+            YAHOO.force.com.eDialog = new YAHOO.widget.Panel(
+            "linePanel",
+            { width           :   "800px",visible         :   false,
+             draggable       :   true, close           :   false,  
+             modal           :   true,  fixedCenter     :   true,  zindex          :   100
+            });
+            YAHOO.force.com.rDialog = new YAHOO.widget.Panel(
+            "insertRenderPanel",
+            { width           :   "800px",visible         :   false,
+             draggable       :   true, close           :   false,  
+             modal           :   true,  fixedCenter     :   true,  zindex          :   100
+            });             
+        }else{
+            YAHOO.force.com.myDialog = new YAHOO.widget.Panel(
+            "myPanel",  // The id of our dialog container
+            { 
+                    width           :   "800px",
+                    visible         :   false,
+                    draggable       :   true,
+                    close           :   true,
+                    modal           :   true,
+                    fixedCenter     :   "contained",
+                    zindex          :   100,
+                    effect          :   {effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.3} 
+            }
+            );
+            YAHOO.force.com.eDialog = new YAHOO.widget.Panel("linePanel",
+                {  
+                    // width        :   "900px"
+                    xy          :   [100,80]
+                    ,visible        :   false
+                    ,draggable      :   true
+                    ,close          :   true
+                    ,modal          :   true
+                    ,fixedCenter    :   "contained"
+                    ,zindex         :   100
+                    ,underlay       : "matte"
+                    ,effect         :   {effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.3} 
+                }
+            );
+            YAHOO.force.com.rDialog = new YAHOO.widget.Panel("insertRenderPanel",
+                {  
+                    width        :   "900px"
+                    //xy          :   [100,80]
+                    ,visible        :   false
+                    ,draggable      :   true
+                    ,close          :   true
+                    ,modal          :   true
+                    ,fixedCenter    :   "contained"
+                    ,zindex         :   100
+                    ,underlay       : "matte"
+                    ,effect         :   {effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.3} 
+                }
+            );
+       }
+       YAHOO.force.com.eDialog.setHeader("Insert Related List");
+       YAHOO.force.com.myDialog.render(document.body);
+       YAHOO.force.com.eDialog.render(document.body);
+       YAHOO.force.com.rDialog.render(document.body);
+    }
+
+
+
+bind = function(){
+
+  var CKEDITOR_BASEPATH = '{!URLFOR($Resource.ckEditor,'ckeditor/')}';
+  CKEDITOR.editorConfig = function( config )
+        {
+            config.font_names = 
+              'Arial/Arial Unicode MS,sans-serif;' +
+              'Comic Sans MS/comic sans ms,cursive;' +
+              'Courier New/courier new,courier,monospace;' +
+              'Georgia/georgia,serif;' +
+              'Lucida Sans Unicode/lucida sans unicode,lucida grande,sans-serif;' +
+              'Tahoma/tahoma,geneva,sans-serif;';
+            config.fontSize_sizes =
+              '8/8pt;9/9pt;10/10pt;11/11pt;12/12pt;13/13pt;14/14pt;' +
+              '16/16pt;18/18pt;20/20pt;22/22pt;24/24pt;26/26pt;28/28pt;' +
+              '36/36pt;48/48pt;72/72pt;';
+            config.height = '400';
+    //        config.autoGrow_onStartup = true;
+    //        config.autoGrow_minHeight = 400;
+    //        config.autoGrow_bottomSpace = 25;
+            // Define changes to default configuration here. For example:
+            config.defaultLanguage = 'en';
+            config.filebrowserBrowseUrl = '{!$Page.SDFileList}';
+            config.filebrowserUploadUrl = '{!$Page.SDFileUpload}';
+            config.filebrowserImageBrowseUrl = '{!$Page.SDFileList}';
+            config.filebrowserImageUploadUrl = '{!$Page.SDFileUpload}' + '?isImageUpload=true';
+
+            // For explanation, open SDTemplateEditor.cls
+            // and see notes above useParagraphForLineBreak() function definition
+            config.enterMode = CKEDITOR.ENTER_BR;
+            //}
+
+            config.shiftEnterMode = CKEDITOR.ENTER_P;
+            config.allowedContent = true;
+            config.FormatSource = false;
+            config.FormatOutput = false;
+            if ('{!JSENCODE($CurrentPage.parameters.spellcheck)}' === 'true') {
+              config.disableNativeSpellChecker = false;
+            }
+            config.removePlugins = 'fixed, autogrow';
+            if ('{!showLightningUI}' === 'true') {
+              config.skin = 'moono-lisa';
+            }
+
+            // Paste from Word fix 11/1/17
+            config.pasteFromWordRemoveFontStyles = false;
+            config.pasteFromWordRemoveStyles = false;
+
+            CKEDITOR.dtd.$removeEmpty['span']=false;
+
+            config.toolbar_UserChoices = [
+                ['Source','-','Preview','-','Maximize'],
+                ['Font','FontSize'],
+                ['TextColor','BGColor'],
+                ['Bold','Italic','Underline','Strike','RemoveFormat'],
+                ['Image','Table','Link','PageBreak']
+            ];
+        };
+
+        // Added 9/15/17 to add support for <span arabic="true">
+        CKEDITOR.stylesSet.add( 'default', [
+          { name: 'Italic Title',   element: 'h2', styles: { 'font-style': 'italic' } },
+          { name: 'Subtitle',     element: 'h3', styles: { 'color': '#aaa', 'font-style': 'italic' } },
+          {
+            name: 'Special Container',
+            element: 'div',
+            styles: {
+              padding: '5px 10px',
+              background: '#eee',
+              border: '1px solid #ccc'
+            }
+          },
+
+          { name: 'Marker',     element: 'span', attributes: { 'class': 'marker' } },
+
+          { name: 'Big',        element: 'big' },
+          { name: 'Small',      element: 'small' },
+          { name: 'Typewriter',   element: 'tt' },
+
+          { name: 'Computer Code',  element: 'code' },
+          { name: 'Keyboard Phrase',  element: 'kbd' },
+          { name: 'Sample Text',    element: 'samp' },
+          { name: 'Variable',     element: 'var' },
+
+          { name: 'Deleted Text',   element: 'del' },
+          { name: 'Inserted Text',  element: 'ins' },
+
+          { name: 'Cited Work',   element: 'cite' },
+          { name: 'Inline Quotation', element: 'q' },
+
+          { name: 'Language: RTL',  element: 'rtl' },
+          { name: 'Language: LTR',  element: 'span', attributes: { 'dir': 'ltr' } },
+          { name: 'Language: Arabic',  element: 'span', attributes: { 'arabic': 'true' } },
+
+          /* Object Styles */
+
+          {
+            name: 'Styled image (left)',
+            element: 'img',
+            attributes: { 'class': 'left' }
+          },
+
+          {
+            name: 'Styled image (right)',
+            element: 'img',
+            attributes: { 'class': 'right' }
+          },
+
+          {
+            name: 'Compact table',
+            element: 'table',
+            attributes: {
+              cellpadding: '5',
+              cellspacing: '0',
+              border: '1',
+              bordercolor: '#ccc'
+            },
+            styles: {
+              'border-collapse': 'collapse'
+            }
+          },
+
+          { name: 'Borderless Table',   element: 'table', styles: { 'border-style': 'hidden', 'background-color': '#E6E6FA' } },
+          { name: 'Square Bulleted List', element: 'ul',    styles: { 'list-style-type': 'square' } }
+        ] );
+          
+        if (!document.getElementsByClassName) {
+            document.getElementsByClassName = function (cn) { 
+                var rx = new RegExp("(?:^|\\s)" + cn+ "(?:$|\\s)");
+                var allT = document.getElementsByTagName("*"), allCN = [], ac="", i = 0, a;
+                    while (a = allT[i=i+1]) {
+                      ac=a.className;
+                      if ( ac && ac.indexOf(cn) !==-1) {
+                        if(ac===cn){ allCN[allCN.length] = a; continue;   }
+                        rx.test(ac) ? (allCN[allCN.length] = a) : 0;
+                      }
+                    }
+                return allCN;
+            }
+        }
+        
+        if (document.getElementsByClassName){
+        var e = document.getElementsByClassName( 'ckeditor1' );
+        for(var i=0;i<e.length;i++){
+          var editor1 = CKEDITOR.replace( e[i], {toolbar: 'Full'});
+        }
+      }
+      var e = document.getElementsByClassName('ckeditor-user-choice');
+      for (var i = 0; i < e.length; i++) {
+        var a = CKEDITOR.dom.element.get(e[i].name);
+        if (!a.getEditor()) {
+          var editor1 = CKEDITOR.replace( 
+            e[i], 
+            { height: 128, toolbar: 'UserChoices' }
+          );
+        }
+      }
+      //addCkEditorToUserChoices({ height: 128, toolbar: 'Full' });
+}
+
+//Using an empty function to override the default behavior and prevent incorrect focus from being set
+function setFocusOnLoad() {}
+
+window.onload = function(){
+  bind();
+  YAHOO.force.com.init();
+}
+</script>
+
+<!-- ================================ End User Choice Feature ================================ -->
+
+<apex:outputPanel rendered="{!NOT(doLightningRedirect)}">
+
+<apex:outputPanel rendered="{!NOT(userChoicesFound && noUserChoicesRendered)}">
+
+<apex:sectionHeader html-tabindex="1" title="{!tm['Create S-Docs']}" subtitle="{!tm['Validate Information']}"/>
+<apex:form >
+    <span class="style6">&lt;&lt;</span>
+    <apex:commandLink action="{!returnToObj}" value="{!tm['Back to: record details']}"/>
+<br></br>
+<br></br>
+<apex:pageBlock >
+<img src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+<apex:commandButton action="{!step3}" value="{!btnTxtStep3}" styleClass="btn"
+  rendered="{!NOT(lightningNav)}" />
+<apex:commandButton action="{!step3}" value="{!btnTxtStep3}" styleClass="btn"
+  rendered="{!lightningNav}" reRender="lightning_redirect_panel" />
+<!-- NOTE: This escape="false" below is alright since we are just pulling in static HTML from our managed package. -->
+<apex:pageMessages escape="false" />
+<apex:outputPanel rendered="{!pickContacts}">
+  <apex:outputText value="{!tm['Merge Contact Information']}" style="font-size: 18px; font-weight:bold;"/>
+    <br/><br/>
+    <apex:pageBlockSection title="{!tm['Document Header Information']}" rendered="false" columns="1" collapsible="false">
+        <apex:outputPanel styleClass="labelPanel" id="bu" layout="block" />
+    </apex:pageBlockSection>
+
+<table width="100%">
+    <tr>
+    <td>
+        <br></br>
+    <apex:pageBlockSection id="recPanel" title="{!tm['Contact Information']}" rendered="{!showRecordContact}" columns="1" collapsible="false">
+        <apex:pageBlockSectionItem rendered="{!NOT(hideContactLookup)}">
+            <apex:outputLabel value="{!tm['Contact']}" for="RConLU"/>
+            <apex:inputField value="{!RContactLookup.SDOC__Contact__c}" id="RConLU">
+                <apex:actionSupport event="onchange" action="{!setRLookup}" reRender="recPanel" status="r1"/>
+                <apex:actionStatus id="r1">
+                    <apex:facet name="start">
+                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                    </apex:facet>
+                </apex:actionStatus>                
+            </apex:inputField>
+        </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+                <apex:outputLabel value="{!tm['Contact Quick Pick']}" for="RConQP"/>
+                <apex:panelGroup >
+                <apex:selectList value="{!selectedRecordContact}" size="1" id="RConQP" style="font-family:'Courier'">
+                    <apex:actionSupport event="onchange" action="{!syncRLookup}" reRender="recPanel" status="r2"/>
+                    <apex:selectOptions value="{!contactItems}"/>
+                </apex:selectList>
+                <apex:actionStatus id="r2">
+                    <apex:facet name="start">
+                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                    </apex:facet>
+                </apex:actionStatus>            
+            </apex:panelGroup>
+        </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Contact Title']}" for="ct"/>
+            <apex:outputText value="{!recordContact.Title}" id="ct"/>
+        </apex:pageBlockSectionItem> 
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Contact Tel No']}" for="ct"/>
+            <apex:outputText value="{!recordContact.Phone}" id="ct"/>
+        </apex:pageBlockSectionItem>                    
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Contact Email']}" for="ce"/>
+            <apex:outputText value="{!recordContact.Email}" id="ce"/> 
+        </apex:pageBlockSectionItem>
+    </apex:pageBlockSection>
+    </td>
+    </tr>
+</table>
+
+<table width="100%">
+    <tr>
+<td>
+    <br></br>
+    <apex:pageBlockSection id="billPanel" title="{!tm['Billing Information']}" rendered="{!showBillingContact}" columns="1" collapsible="false">
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Account Name']}" for="ban"/>
+            <apex:outputText value="{!acct.name}" id="ban"/> 
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Account Billing Address']}" for="ba"/>
+            <apex:outputText value="{!acct.billingStreet}" id="ba"/> 
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value=" " for="bcsz"/>
+            <apex:outputText value="{!acct.billingCity + ','+ acct.billingState + ' ' + acct.billingPostalCode}" id="bcsz"/> 
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="" for="bc"/>
+            <apex:outputText value="{!acct.billingCountry}" id="bc"/> 
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem rendered="{!NOT(hideContactLookup)}">
+            <apex:outputLabel value="{!tm['Contact']}" for="BConLU"/>
+            <apex:inputField value="{!BContactLookup.SDOC__Contact__c}" id="BConLU">
+                <apex:actionSupport event="onchange" action="{!setBLookup}" reRender="billPanel" status="b1"/>
+                <apex:actionStatus id="b1">
+                    <apex:facet name="start">
+                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                    </apex:facet>
+                </apex:actionStatus>                
+            </apex:inputField>
+        </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+                <apex:outputLabel value="{!tm['Contact Quick Pick']}" for="BConQP"/>
+                <apex:panelGroup >
+                <apex:selectList value="{!selectedBillingContact}" size="1" id="BConQP" style="font-family:'Courier'">
+                    <apex:actionSupport event="onchange" action="{!syncBLookup}" reRender="billPanel" status="b2"/>
+                    <apex:selectOptions value="{!contactItems}"/>
+                </apex:selectList>
+                <apex:actionStatus id="b2">
+                    <apex:facet name="start">
+                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                    </apex:facet>
+                </apex:actionStatus>            
+            </apex:panelGroup>
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Contact Tel No']}" for="bct"/>
+            <apex:outputText value="{!billingContact.Phone}" id="bct"/> 
+        </apex:pageBlockSectionItem>                    
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Contact Email']}" for="bce"/>
+            <apex:outputText value="{!billingContact.Email}" id="bce"/> 
+        </apex:pageBlockSectionItem>
+    </apex:pageBlockSection>
+</td>    
+ <td>
+    <br></br>
+    <apex:pageBlockSection id="shipPanel" title="{!tm['Shipping Information']}" rendered="{!showShippingContact}" columns="1" collapsible="false">
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Account Name']}" for="san"/>
+            <apex:outputText value="{!acct.name}" id="san"/> 
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Account Shipping Address']}" for="sa"/>
+            <apex:outputText value="{!acct.ShippingStreet}" id="sa"/> 
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value=" " for="scsz"/>
+            <apex:outputText value="{!acct.ShippingCity + ','+ acct.ShippingState + ' ' + acct.ShippingPostalCode}" id="scsz"/> 
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="" for="sc"/>
+            <apex:outputText value="{!acct.ShippingCountry}" id="sc"/> 
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem rendered="{!NOT(hideContactLookup)}">
+            <apex:outputLabel value="{!tm['Contact']}" for="SConLU"/>
+            <apex:inputField value="{!SContactLookup.SDOC__Contact__c}" id="SConLU">
+                <apex:actionSupport event="onchange" action="{!setSLookup}" reRender="shipPanel" status="s1"/>
+                <apex:actionStatus id="s1">
+                    <apex:facet name="start">
+                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                    </apex:facet>
+                </apex:actionStatus>                
+            </apex:inputField>
+        </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+                <apex:outputLabel value="{!tm['Contact Quick Pick']}" for="SConQP"/>
+                <apex:panelGroup >
+                <apex:selectList value="{!selectedShippingContact}" size="1" id="SConQP" style="font-family:'Courier'">
+                    <apex:actionSupport event="onchange" action="{!syncSLookup}" reRender="shipPanel" status="s2"/>
+                    <apex:selectOptions value="{!contactItems}"/>
+                </apex:selectList>
+                <apex:actionStatus id="s2">
+                    <apex:facet name="start">
+                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                    </apex:facet>
+                </apex:actionStatus>            
+            </apex:panelGroup>
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Contact Tel No']}" for="sct"/>
+            <apex:outputText value="{!shippingContact.Phone}" id="sct"/> 
+        </apex:pageBlockSectionItem>                    
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Contact Email']}" for="sce"/>
+            <apex:outputText value="{!shippingContact.Email}" id="sce"/> 
+        </apex:pageBlockSectionItem>
+    </apex:pageBlockSection>
+</td>
+
+    </tr>
+</table>
+<br></br> 
+</apex:outputPanel>
+
+<apex:outputPanel id="task-create-alter">
+  <apex:repeat value="{!SDDocs}" var="templateWrapper">
+    <apex:outputPanel rendered="{!templateWrapper.taskCreate && templateWrapper.t.SDOC__Task_Details_Override__c}">
+      <apex:pageBlock title="{!tm['Edit new Task']} ({!templateWrapper.t.Name})">
+        <apex:pageBlockSection columns="2">
+          <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Subject']}" />
+            <apex:inputText value="{!templateWrapper.taskSubject}" />
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Status']}" />
+            <apex:inputText value="{!templateWrapper.taskStatus}" />
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Days until Salesforce Task is due']}" />
+            <apex:inputText value="{!templateWrapper.taskDueAddDays}" />
+          </apex:pageBlockSectionItem>
+          <apex:pageBlockSectionItem >
+            <apex:outputLabel value="{!tm['Count business days only']}" />
+            <apex:inputCheckbox value="{!templateWrapper.addBusinessDaysOnly}" />
+          </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+      </apex:pageBlock>
+    </apex:outputPanel>
+  </apex:repeat>
+</apex:outputPanel>
+
+<!-- ================================ Start User Choice Feature ================================ -->
+<apex:outputPanel id="user-choice-section" rendered="{!userChoicesFound}">
+  <style type="text/css">
+    .prompts { font-weight:bold; color: #1E824C; }
+  </style>
+  <br />
+  <apex:outputPanel rendered="{!requiredUserChoicesPresent}">
+    <span style="color:red; font-size: 20px;">*&nbsp;</span><em>= Required Field</em>
+  </apex:outputPanel>
+  <apex:pageBlockTable rendered="{!ucUserChoices.size > 0}" value="{!ucUserChoices}" var="userChoices">
+    <apex:column rendered="{!NOT(userChoices.isEmpty)}">
+      <apex:outputText value="{!pleaseFillInFieldsMap[userChoices.templateId]}"
+      styleClass="prompts" style="font-size: 16px;" />
+      <br />
+      <apex:pageBlockTable value="{!userChoices.ucUserChoices}" var="userChoice">
+        <apex:column >
+          <style type="text/css">
+            .hidden-table-cell {width: 500px;}
+          </style>
+          <table>
+            <tr>
+              <td class="hidden-table-cell"
+              style="{!if(userChoice.choiceType == UC_PDF_STITCH, 'vertical-align:top; width:100%; border-bottom: 0px;', 'vertical-align:top; padding-right: 20px; border-right: 1px solid #EBEBEB; border-bottom: 0px;')}">
+                <br />
+                <apex:outputPanel rendered="{!userChoice.required}" style="color:red; font-size: 20px;">
+                  *&nbsp;
+                </apex:outputPanel>
+                <apex:outputPanel rendered="{!(userChoice.choiceType == UC_CHECKBOX_CHOICE) && (userChoice.ucCheckboxChoices.collapsableOptions)}" style="padding:0px !important;">
+                  <style type="text/css">
+                    .bPageBlock {
+                      background: none !important;
+                      border: none !important;
+                      margin: 0px !important;
+                      padding: none !important;
+                      width: 100% !important;
+                      text-align: left !important;
+                    }
+
+                    .pbSubheader {
+                      margin: 0px !important;
+                      align: left !important;
+                    }
+
+                    .pbSubsection {
+                      width: 100% !important;
+                      margin: 0px !important;
+                      text-align: left !important;
+                      padding: none !important;
+                    }
+
+                    .pbBody {
+                      width: 100% !important;
+                      margin: 0px !important;
+                      align: left !important;
+                    }
+
+                    .data2Col {
+                      align: left !important;
+                      padding: 0px !important;
+                      margin: 0px !important;
+                    }
+                  </style>
+                  <apex:pageBlock >
+                    <!-- UserChoiceCheckboxes -->
+                    <apex:pageBlockSection id="collapse" collapsible="true" title="{!userChoice.prompt}" columns="1">
+                      <apex:outputPanel style="display: none;" rendered="{!userChoice.ucCheckboxChoices.closedAsDefault}">
+                          <script> 
+                            twistSection(document.getElementById('img_{!$Component.collapse}')); 
+                          </script>
+                      </apex:outputPanel>
+                      <apex:outputText styleClass="max-num-cbc-selections-{!userChoices.templateId}-{!userChoice.userChoiceNum}"
+                      value="{!userChoice.ucCheckboxChoices.maxNumSelections}"
+                      style="display:none;" />
+                      <apex:pageBlockTable var="cbc" value="{!userChoice.ucCheckboxChoices.ucCheckboxChoices}">
+                        <apex:column >
+                            <apex:inputCheckbox value="{!cbc.checked}" 
+                            styleClass="user-choice-checkbox-{!userChoices.templateId}-{!userChoice.userChoiceNum}" onchange="updateCheckboxes('{!userChoices.templateId}');" />
+                            <apex:outputText value="{!cbc.displayText}" escape="false" />
+                        </apex:column>
+                      </apex:pageBlockTable>
+
+                    </apex:pageBlockSection>
+                    <!-- End UserChoiceCheckboxes -->
+                  </apex:pageBlock>  
+                </apex:outputPanel>
+
+                <apex:outputPanel rendered="{!(userChoice.choiceType != UC_CHECKBOX_CHOICE) || (NOT(userChoice.ucCheckboxChoices.collapsableOptions))}">
+                  <apex:outputText value="{!userChoice.displayPrompt}" escape="false"
+                  styleClass="prompts" style="font-size: 12px;" />
+                  <!-- UserChoiceCheckboxes -->
+                  <apex:outputPanel rendered="{!userChoice.choiceType == UC_CHECKBOX_CHOICE}">
+                        <apex:outputText styleClass="max-num-cbc-selections-{!userChoices.templateId}-{!userChoice.userChoiceNum}"
+                        value="{!userChoice.ucCheckboxChoices.maxNumSelections}"
+                        style="display:none;" />
+                        <apex:pageBlockTable var="cbc" value="{!userChoice.ucCheckboxChoices.ucCheckboxChoices}">
+                          <apex:column >
+                              <apex:inputCheckbox value="{!cbc.checked}" 
+                              styleClass="user-choice-checkbox-{!userChoices.templateId}-{!userChoice.userChoiceNum}" onchange="updateCheckboxes('{!userChoices.templateId}');" />
+                              <apex:outputText value="{!cbc.displayText}" escape="false" />
+                          </apex:column>
+                        </apex:pageBlockTable>
+                  </apex:outputPanel>
+                  <!-- End UserChoiceCheckboxes -->
+                </apex:outputPanel>
+
+                <!-- Start Runtime Prompts Related Lists -->
+                <apex:outputPanel rendered="{!userChoice.choiceType == UC_RELATED_LIST}">
+                  <apex:outputText styleClass="max-num-rl-selections-{!userChoices.templateId}-{!userChoice.userChoiceNum}"
+                      value="{!userChoice.ucRelatedListOptions.maxNumSelections}"
+                      style="display:none;" />
+                  <apex:pageBlockTable var="row" value="{!userChoice.ucRelatedListOptions.relatedListRows}">
+                    <apex:column >
+                      <apex:inputCheckbox value="{!row.checked}"
+                        styleClass="user-choice-relatedlist-{!userChoices.templateId}-{!userChoice.userChoiceNum}" 
+                        onchange="updateCheckboxes('{!userChoices.templateId}');"/>
+                    </apex:column>
+                    <apex:repeat value="{!userChoice.ucRelatedListOptions.columnNums}" var="col"> 
+                      <apex:column value="{!row.relatedListRow[col]}"> 
+                        <apex:facet name="header">{!userChoice.ucRelatedListOptions.columnHeaders[col]}</apex:facet>
+                      </apex:column>
+                    </apex:repeat> 
+                  </apex:pageBlockTable>
+                </apex:outputPanel>
+                <!-- End Runtime Prompts Related Lists -->
+
+                <!-- Start UserChoicePDFStitch -->                  
+                <apex:outputPanel id="pdfOptsTable" rendered="{!userChoice.choiceType == UC_PDF_STITCH}">
+                  <apex:pageBlockTable value="{!userChoice.ucPDFStitchOpts.optWrappers}" var="PDF" style="width:100%;">
+                    <apex:column width="35px">
+                      <apex:inputCheckbox value="{!PDF.checked}">
+                        <apex:actionsupport event="onclick" action="{!addOrRemoveSelectedPDFs}" rerender="selectedPDFsTable">
+                          <apex:param name="pdfOptTemplate" value="{!userChoices.templateId}"/>
+                          <apex:Param name="pdfOptFileId" value="{!PDF.fileId}" />
+                          <apex:param name="pdfOptNum" value="{!userChoice.ucPDFStitchOpts.optNum}"/>
+                        </apex:actionsupport>
+                      </apex:inputCheckbox>
+                    </apex:column>
+                    <apex:column headerValue="{!tm['Name']}">
+                      <apex:outputText value="{!PDF.Name}"/>&nbsp;&nbsp;&nbsp;&nbsp;
+                    </apex:column>
+                    <apex:column headerValue="{!tm['Description']}">
+                      <apex:outputText value="{!PDF.Description}"/>&nbsp;&nbsp;&nbsp;&nbsp;
+                    </apex:column>
+                  </apex:pageBlockTable>
+                </apex:outputPanel>
+
+                <!-- UserChoiceTextFields -->
+                <apex:outputPanel rendered="{!userChoice.choiceType == UC_INPUT_TEXT}">
+                  <!--apex:pageBlockTable var="tf" value="{!userChoice.textFieldListWrapper.textFieldList}">
+                    <apex:column>
+                      <apex:outputText value="{!tf.label}" />
+                      <apex:inputText value="{!tf.inputText}" />
+                    </apex:column>
+                  </apex:pageBlockTable-->
+                  <br />
+                  <apex:outputText value="{!userChoice.textFieldListWrapper.textFieldList[0].label}" />
+                  <!-- Text inputs without preformatting -->
+                  <apex:outputPanel rendered="{!LEN(userChoice.textFieldListWrapper.textFieldList[0].preformatting) == 0}">
+                    <apex:inputText value="{!userChoice.textFieldListWrapper.textFieldList[0].inputText}" 
+                    rendered="{!NOT(userChoice.textFieldListWrapper.textFieldList[0].isTextArea || userChoice.textFieldListWrapper.textFieldList[0].enableRichText)}"
+                    style="width: 350px" />
+                    <apex:inputTextArea value="{!userChoice.textFieldListWrapper.textFieldList[0].inputText}"
+                    rendered="{!userChoice.textFieldListWrapper.textFieldList[0].isTextArea && NOT(userChoice.textFieldListWrapper.textFieldList[0].enableRichText)}"
+                    style="width: 350px" />
+                    <!--ckeditor input area-->
+                    <apex:inputTextArea value="{!userChoice.textFieldListWrapper.textFieldList[0].inputText}"
+                    rendered="{!userChoice.textFieldListWrapper.textFieldList[0].enableRichText}"
+                    styleClass="ckeditor-user-choice"/>
+                  </apex:outputPanel>
+                  <!-- Text inputs with preformatting -->
+                  <apex:outputPanel rendered="{!LEN(userChoice.textFieldListWrapper.textFieldList[0].preformatting) > 0}">
+                    <apex:inputText value="{!userChoice.textFieldListWrapper.textFieldList[0].inputText}" 
+                    rendered="{!NOT(userChoice.textFieldListWrapper.textFieldList[0].isTextArea)}"
+                    styleClass="user-choice-text-input-{!userChoice.userChoiceNum}" 
+                    onkeyup="checkPreformattingText(event, '{!userChoice.userChoiceNum}', '{!userChoice.textFieldListWrapper.textFieldList[0].preformatting}');"
+                    html-placeholder="{!userChoice.textFieldListWrapper.textFieldList[0].preformatting}"
+                    style="width: 350px" />
+                    <apex:inputTextArea value="{!userChoice.textFieldListWrapper.textFieldList[0].inputText}"
+                    rendered="{!userChoice.textFieldListWrapper.textFieldList[0].isTextArea}"
+                    styleClass="user-choice-text-area-input-{!userChoice.userChoiceNum}" 
+                    onkeyup="checkPreformattingTextArea(event, '{!userChoice.userChoiceNum}', '{!userChoice.textFieldListWrapper.textFieldList[0].preformatting}');"
+                    html-placeholder="{!userChoice.textFieldListWrapper.textFieldList[0].preformatting}"
+                    style="width: 350px" />
+                    <br />
+                    <apex:outputText styleClass="preformatting-error-message-{!userChoice.userChoiceNum}" 
+                    value="{!tm['Formatting of # requires input of a 0-9 digit']}" 
+                    style="color: red; visibility: hidden;" />
+                  </apex:outputPanel>
+                </apex:outputPanel>
+                <!-- End UserChoiceTextFields -->
+
+                <!-- InputDateWrapper -->
+                <apex:outputPanel rendered="{!userChoice.choiceType == UC_INPUT_DATE}">
+                  <br />
+                  <apex:outputText value="{!userChoice.inputDateWrp.label}" />
+                  <apex:input type="date" value="{!userChoice.inputDateWrp.inputDate}" />
+                </apex:outputPanel>
+                <!-- End InputDateWrapper -->
+
+                <!-- Lookup Fields -->
+                <!-- http://www.laceysnr.com/generic-input-with-dynamic-visualforce/ -->
+                <!--apex:inputField rendered="{!userChoice.lookupObject.rendered}" 
+                value="{!userChoice.lookupObject.lookupBaseObj[userChoice.lookupObject.lookupFieldName]}"/ -->
+                <!-- End Lookup Fields -->
+
+              </td>
+              <td class="hidden-table-cell"
+              style="{!if(userChoice.choiceType == UC_PDF_STITCH, 'display:none;', 'vertical-align:top; padding-left: 20px; border-bottom: 0px;')}">
+                <br />
+                <apex:outputPanel rendered="{!userChoice.defaultValue != null}">
+                  <apex:outputText value="{!tm['If you do not provide a value, the following default value will be used:']}"
+                  styleClass="prompts" />
+                  <br />
+                  <apex:outputText value="{!userChoice.displayDefaultValue}" escape="false" />
+                </apex:outputPanel>
+              </td>
+            </tr>
+          </table>
+          <script type="text/javascript">
+            // We want to run an initial update on all checkbox fields
+            // to account for default fields in Min/Max limits
+            updateCheckboxes('{!userChoices.templateId}');
+          </script>
+        </apex:column>
+      </apex:pageBlockTable>
+      <br />
+      <br />
+    </apex:column>
+    <apex:column >
+      <apex:panelGroup id="selectedPDFsTable">
+        <apex:pageBlockSection title="{!tm['Selected Documents']}" columns="1" collapsible="false" rendered="{!NOT(userChoices.stillMorePagesRemaining) && userChoices.usingPDFStitch}">
+            <apex:pageBlockTable value="{!orderedSelectedPDFsMap[userChoices.templateId]}" var="selectedPDFOpt" >
+              <apex:column headerValue="{!tm['Remove']}" style="{!IF(selectedPDFOpt.fileId == '','background-color: #009EDB;','')}width:5%;">
+                <apex:commandButton value="X" action="{!removePDFOpt}" styleClass="btn" rerender="pdfOptsTable, selectedPDFsTable" rendered="{!(selectedPDFOpt.fileId != '')}">
+                  <apex:Param name="pdfOptId" value="{!selectedPDFOpt.fileId}" />
+                  <apex:Param name="ucChoiceNum" value="{!selectedPDFOpt.ucChoiceNum}" />
+                  <apex:Param name="templateId" value="{!userChoices.templateId}"/>
+                  <apex:Param name="pdfChecked" value="{!selectedPDFOpt.checked}"/>
+                </apex:commandButton>
+              </apex:column>
+              <apex:column headerValue="{!tm['Name']}" style="{!IF(ISBLANK(selectedPDFOpt.fileId),'background-color: #009EDB;','')}width:65%;">
+                &nbsp;&nbsp;
+                <apex:outputText value="{!selectedPDFOpt.name}"/>
+              </apex:column>
+              <apex:column headerValue="Move" style="{!IF(selectedPDFOpt.fileId == '','background-color: #009EDB;','')}width:30%;">
+                <apex:commandButton value="▲" action="{!moveSelectedPDFUp}" styleClass="btn" rerender="selectedPDFsTable">
+                  <apex:Param name="pdfOptId" value="{!selectedPDFOpt.fileId}" />
+                  <apex:Param name="templateId" value="{!userChoices.templateId}"/>
+                  <apex:Param name="ucChoiceNum" value="{!selectedPDFOpt.ucChoiceNum}"/>
+                </apex:commandButton>
+                <apex:commandButton value="▼" action="{!moveSelectedPDFDown}" styleClass="btn" rerender="selectedPDFsTable">
+                  <apex:Param name="pdfOptId" value="{!selectedPDFOpt.fileId}" />
+                  <apex:Param name="templateId" value="{!userChoices.templateId}"/>
+                  <apex:Param name="ucChoiceNum" value="{!selectedPDFOpt.ucChoiceNum}"/>
+                </apex:commandButton>
+              </apex:column>
+            </apex:pageBlockTable>
+        </apex:pageBlockSection>
+      </apex:panelGroup>
+    </apex:column>
+  </apex:pageBlockTable>
+  <img src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+  <apex:commandButton action="{!step3}" value="{!btnTxtStep3}" styleClass="btn"
+    rendered="{!NOT(lightningNav)}" />
+  <apex:commandButton action="{!step3}" value="{!btnTxtStep3}" styleClass="btn"
+    rendered="{!lightningNav}" reRender="lightning_redirect_panel" />
+</apex:outputPanel>
+<!-- ================================ End User Choice Feature ================================ -->
+
+<apex:outputPanel rendered="{!debugMode}">
+<!--
+<apex:panelGroup id="panelNA" rendered="{!NOT(pickContacts)}">
+The document(s) you selected do not require any additional information.<br></br> 
+Click the "Generate Doc" button when you are ready to generate your documents.
+</apex:panelGroup>
+<br></br>
+<br></br>
+<br></br>
+<br></br>
+<br></br> 
+<br></br>
+-->
+
+<apex:panelGroup id="panelAI" >
+                    <table cellspacing="0" cellpadding="0" class="style1" width="35%">
+                        <tr valign="bottom" align="Left" class="headerRow1">
+                            <td width="100%">Data Merge Details</td>
+                       </tr> 
+                    </table>
+                    <apex:dataTable value="{!fieldsForCapture}" var="f" headerClass="headerRow1" rowClasses="dataRowOdd, dataRowEven" styleClass="style1" width="100%">
+                                <apex:column ><apex:facet name="header"><b>Description</b></apex:facet>
+                                {!f.Descr}</apex:column>
+                                <apex:column ><apex:facet name="header"><b>Value</b></apex:facet>
+                                {!f.Value}</apex:column>
+                     </apex:dataTable>
+</apex:panelGroup>
+<br/><br/>
+</apex:outputPanel>
+</apex:pageBlock>
+</apex:form>
+</apex:outputPanel>
+</apex:outputPanel>
+
+</apex:page>

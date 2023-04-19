@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__ConnectedAppConsumerKey__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Consumer Key for the SDocs connected App.
+In the Connected App settings record for S-Docs, under the API (Enable OAuth Settings) header section, look for the field labeled a field labeled &quot;Consumer Key&quot;.</description>
+    <encryptionScheme>None</encryptionScheme>
+    <externalId>false</externalId>
+    <inlineHelpText>Consumer Key for the SDocs connected App.
+In the Connected App settings record for S-Docs, under the API (Enable OAuth Settings) header section, look for the field labeled a field labeled &quot;Consumer Key&quot;.</inlineHelpText>
+    <label>ConnectedAppConsumerKey</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

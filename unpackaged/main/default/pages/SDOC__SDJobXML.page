@@ -1,0 +1,4 @@
+<apex:page standardController="SDOC__SDJob__c" extensions="SDOC.SDJobTemplateController" showHeader="false"
+contentType="text/xml" standardStylesheets="false" cache="true" ApplyhtmlTag="false" action="{!initDeleteJobs}">
+    <apex:dynamicComponent componentValue="{!templateXML}" />
+</apex:page>

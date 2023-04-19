@@ -1,0 +1,360 @@
+<apex:page controller="SDOC.SDCreateController" 
+tabStyle="SDOC__SDTemplate__c" standardstylesheets="true"
+sidebar="{!sidebar}"
+action="{!initStep1}"
+title="{!tm['Generate Documents']}"
+lightningStylesheets="true">
+
+<!-- ================ START LIGHTNING_REDIRECT_PANEL ================ -->
+<apex:outputPanel id="lightning_redirect_panel">
+<script>
+if ('{!doLightningRedirect}' === 'true') {
+    if( (typeof sforce != 'undefined') && sforce && (!!sforce.one) ) {
+        sforce.one.navigateToURL('{!lightningRedirectURL}', true);
+    } else {
+        window.location.href = '{!URLFOR(lightningRedirectURL)}';
+    }
+}
+</script>
+</apex:outputPanel>
+<!-- ================= END LIGHTNING_REDIRECT_PANEL ================= -->
+
+<!-- Must be included to use sforce.console.isInConsole() -->
+<!-- Use version 30.0; isInConsole() doesn't work on version 40.0 -->
+<apex:includeScript value="/support/console/30.0/integration.js"/>
+
+<style type="text/css">
+    .visually-hidden { 
+        border: 0;
+        padding: 0;
+        margin: 0;
+        position: absolute !important;
+        height: 1px; 
+        width: 1px;
+        overflow: hidden;
+        clip: rect(1px 1px 1px 1px); /* IE6, IE7 - a 0 height clip, off to the bottom right of the visible 1px box */
+        clip: rect(1px, 1px, 1px, 1px); /*maybe deprecated but we need to support legacy browsers */
+        clip-path: inset(50%); /*modern browsers, clip-path works inwards from each corner*/
+        white-space: nowrap; /* added line to stop words getting smushed together (as they go onto seperate lines and some screen readers do not understand line feeds as a space */
+    }
+</style>
+
+<script type="text/javascript">
+// Hide Salesforce header if showheader=false is included in URL
+var hideHeader = function() {
+  var salesforceHeader = document.getElementById('AppBodyHeader');
+  if (salesforceHeader !== null) {
+    salesforceHeader.style.display = 'none';
+  }
+}
+
+var showHeader = '{!JSENCODE($CurrentPage.parameters.showHeader)}';
+if (showHeader === 'false' || showHeader === '0') {
+    hideHeader();
+}
+// End "Hide Salesforce header if showheader=false is included in URL"
+
+// Hide Salesforce header if user is invoking S-Docs from Sales Console.
+// This is finnicky as there are reported bugs with sforce.console.isInConsole();
+// if this is the case, have the user include &showHeader=false in their S-Docs button. 
+if (sforce.console.isInConsole()) {
+    hideHeader();
+}
+
+var AgreementForm = document.getElementById("blur");
+var ContainerElem = document.getElementById("StatusBox");
+AlignToCenter(ContainerElem);
+function AlignToCenter(Element)
+{
+var availableHeight = 0;
+var availableWidth = 0;
+if (Element.ownerDocument)
+{
+var docElement = Element.ownerDocument.documentElement;
+availableHeight = parseInt(docElement.clientHeight);
+if (availableHeight == "NaN") availableHeight = 0;
+
+availableWidth = parseInt(docElement.clientWidth);
+if (availableWidth == "NaN") availableWidth = 0;
+}
+
+if (availableHeight == 0 || availableHeight == "NaN")
+    availableHeight = window.screen.availHeight - 200;
+if (availableWidth == 0 || availableWidth == "NaN")
+    availableWidth = window.screen.availWidth - 100;
+
+var msgBoxTop = parseInt((availableHeight - parseInt(Element.clientHeight))/2);
+var msgBoxleft = parseInt((availableWidth - parseInt(Element.style.width))/2);
+
+if (msgBoxTop == "NaN" || msgBoxTop == 0)
+    msgBoxTop = 100;
+
+    Element.style.left = msgBoxleft + "px";
+    Element.style.top = msgBoxTop + window.pageYOffset + "px";
+}
+
+function reposition(){
+    if (navigator.appName == 'Window Internet Explorer') {
+        AgreementForm.style.top = document.body.scrollTop;
+    } else {
+        AgreementForm.style.top = window.pageYOffset+"px";
+    }
+}
+
+//Using an empty function to override the default behavior and prevent incorrect focus from being set
+function setFocusOnLoad() {}
+</script>
+<apex:actionStatus id="statLoad">
+    <apex:facet name="start">
+        <div id="blur" style="position:absolute; left:1px; top:1px; width:100%; height:100%; text-align:center; vertical-align: middle; background-color: #dcdcdc; opacity:0.7;filter:alpha(opacity=70)">
+        </div>
+        <div id="StatusBox" style="position:absolute; left:50%; top:300px; width: 120px; height:50px; opacity:1;filter:alpha(opacity=100)">
+        <table border="1" cellpadding="0" cellspacing="0" style="border-left-color: #336699;
+        border-bottom-color: #336699; width: 120px; border-top-color: #336699; height:50px;
+        border-right-color:#336699; background-color:#ffffff;">
+        <tr>
+        <td align="left" valign="top">
+        <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; height: 100%">
+        <tr>
+        <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;">
+        <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}"/></td>
+        <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;color:darkred;font-size:11pt;font-weight:bold;">
+        &nbsp;{!tm['Loading']}...</td>
+        </tr>
+        </table>
+        </td>
+        </tr>
+        </table>
+        </div>
+    </apex:facet>
+</apex:actionStatus>
+
+<apex:sectionHeader html-tabindex="1" title="{!tm['Create S-Docs']}" subtitle="{!tm['Generate Documents']}"/>
+<apex:form >
+    <script type="text/javascript">
+        // Searches and updates categories based on SearchText2. If Enter key (13) is pressed, prevent it from reloading the page
+        function doSearch() {
+            if(event.keyCode === 13){
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            searchServer(
+                document.getElementById("{!$Component.searchText2}").value,
+                document.getElementById("{!$Component.searchcategories}").options[document.getElementById("{!$Component.searchcategories}").selectedIndex].value
+            );
+            announce("{!tm['Searching...']} for " + document.getElementById("{!$Component.searchText2}").value);
+        }
+        // This is used to "announce" things through a screen reader that would otherwise just be visual
+        function announce(announcement) {
+            var searchAlertElement = document.getElementById("search-alert");
+            searchAlertElement.textContent = announcement;
+        }
+    </script> 
+      <apex:actionFunction name="searchServer" action="{!initStep1}" rerender="panel3g" status="panel3gStatus">
+          <apex:param name="txtValue" value=""/>
+      </apex:actionFunction>  
+    <apex:pageMessages />
+    <apex:outputPanel id="backnav" rendered="{!$User.UIThemeDisplayed !='Theme4t' && showBackButton}">
+        <span class="style6">&lt;&lt;</span>
+        <apex:commandLink action="{!returnToObj}" value="{!tm['Back']}"/> 
+    </apex:outputPanel>
+<br></br><br></br>
+                <apex:panelGroup >
+                    <span id="search-alert" class="visually-hidden" aria-live="assertive"></span>
+                     <apex:outputLabel for="searchcategories">{!tm['Search in']} &nbsp;</apex:outputLabel>
+                     <apex:selectList id="searchcategories" size="1" value="{!docCategory}">
+                        <apex:selectOptions value="{!docCategories}"/>
+                        <apex:actionSupport event="onchange"  action="{!initStep1}" rerender="panel3g" status="panel3gStatus"/>
+                    </apex:selectList>
+                    <apex:outputLabel for="searchText2"> &nbsp; {!tm['for :']} &nbsp;</apex:outputLabel>
+                        <apex:inputText id="searchText2" value="{!searchText2}" onkeypress="doSearch();"/>
+                            <apex:actionSupport event="onkeypress" action="{!initStep1}" rerender="panel3g"/>
+                        <apex:commandButton value="{!tm['Search']}" action="{!initStep1}" rerender="panel3g" status="panel3gStatus">
+                            <apex:param name="txtValue" value="{!searchText2}"/>
+                        </apex:commandButton>
+                    <apex:actionStatus id="panel3gStatus">
+                        <apex:facet name="start">
+                            <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />{!tm['Searching...']}
+                        </apex:facet>
+                    </apex:actionStatus>
+                </apex:panelGroup>
+                <br/>
+                <br/>
+                <apex:panelGroup rendered="{!JSENCODE($CurrentPage.parameters.AFPicklist) != 'false'}">
+                    <apex:dataTable value="{!filterOptionsList}" var="filter">
+                        <apex:column >
+                            <apex:outputPanel layout="none" rendered="{!filter.fieldType == 'PICKLIST'}">
+                                <apex:outputLabel for="filterCategoriesPicklist"> {!tm['Filter on']} <b>{!filter.label}</b> {!tm['for :']} &nbsp;</apex:outputLabel>
+                            </apex:outputPanel>
+                            <apex:outputPanel layout="none" rendered="{!filter.fieldType == 'MULTIPICKLIST'}">
+                                <apex:outputLabel for="filterCategoriesMultiPicklist"> {!tm['Filter on']} <b>{!filter.label}</b> {!tm['for :']} &nbsp;</apex:outputLabel>
+                            </apex:outputPanel>
+                            <apex:outputPanel layout="none" rendered="{!filter.fieldType == 'BOOLEAN'}">
+                                <apex:outputLabel for="filterCategoriesBool"> {!tm['Filter on']} <b>{!filter.label}</b> {!tm['for :']} &nbsp;</apex:outputLabel>
+                            </apex:outputPanel>
+                            <apex:outputPanel layout="none" rendered="{!filter.fieldType == 'STRING' || filter.fieldType == 'TEXTAREA'}">
+                                <apex:outputLabel for="filterCategoriesString"> {!tm['Filter on']} <b>{!filter.label}</b> {!tm['for :']} &nbsp;</apex:outputLabel>
+                            </apex:outputPanel>
+                        </apex:column>
+                        <apex:column >
+                            <apex:outputPanel layout="none" rendered="{!filter.fieldType == 'PICKLIST'}">
+                                <apex:selectList id="filterCategoriesPicklist" size="1" value="{!filter.filterOption}">
+                                    <apex:selectOptions value="{!filter.possibleOptions}"/>
+                                    <apex:actionSupport event="onchange"  action="{!initStep1}" 
+                                    rerender="panel3g" status="panel3gStatus"/>
+                                </apex:selectList>
+                                <apex:actionStatus id="panel3gfilterPLStatus">
+                                    <apex:facet name="start">
+                                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" /> {!tm['Searching...']}
+                                    </apex:facet>
+                                </apex:actionStatus>
+                            </apex:outputPanel>
+                            <apex:outputPanel layout="block" rendered="{!filter.fieldType == 'MULTIPICKLIST'}">
+                                <apex:selectList id="filterCategoriesMultipicklist" value="{!filter.filterOptionList}" multiselect="true" size="{!IF(filter.possibleOptions.size > 5, 5, filter.possibleOptions.size)}" style="width:130px;">
+                                    <apex:selectOptions value="{!filter.possibleOptions}"/>
+                                    <apex:actionSupport event="onchange"  action="{!initStep1}" 
+                                    rerender="panel3g" status="panel3gStatus"/>
+                                </apex:selectList>
+                                <apex:actionStatus id="panel3gfilterMPLStatus">
+                                    <apex:facet name="start">
+                                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" /> {!tm['Searching...']}
+                                    </apex:facet>
+                                </apex:actionStatus>
+                            </apex:outputPanel>
+                            <apex:outputPanel layout="none" rendered="{!filter.fieldType == 'BOOLEAN'}">
+                                <apex:selectList id="filterCategoriesBool" size="1" value="{!filter.filterOption}">
+                                    <apex:selectOptions value="{!filter.possibleOptions}"/>
+                                    <apex:actionSupport event="onchange"  action="{!initStep1}" 
+                                    rerender="panel3g" status="panel3gStatus"/>
+                                </apex:selectList>
+                                <apex:actionStatus id="panel3gfilterBStatus">
+                                    <apex:facet name="start">
+                                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" /> {!tm['Searching...']}
+                                    </apex:facet>
+                                </apex:actionStatus>
+                            </apex:outputPanel>
+                            <apex:outputPanel layout="none" rendered="{!filter.fieldType == 'STRING' || filter.fieldType == 'TEXTAREA'}">
+                                <apex:inputText id="filterCategoriesString" value="{!filter.filterOption}">
+                                    <apex:actionSupport event="onkeyup"  action="{!initStep1}" 
+                                    rerender="panel3g" status="panel3gStatus"/>
+                                </apex:inputText>
+                                <apex:actionStatus id="panel3gfilterSStatus">
+                                    <apex:facet name="start">
+                                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" /> {!tm['Searching...']}
+                                    </apex:facet>
+                                </apex:actionStatus>
+                            </apex:outputPanel>
+                        </apex:column>
+                    </apex:dataTable>
+                </apex:panelGroup>
+<br></br><br></br>
+<apex:pageBlock title="{!selectDocsClickNxtStep}">
+<table width="100%">
+<tr valign="top">
+<td> 
+    <apex:pageBlockSection title="{!tm['S-Doc Templates']}" columns="1" collapsible="false">
+            <apex:pageBlockSectionItem >
+                <apex:panelGroup id="panel3g">
+                    <!--
+                    <apex:outputText>&nbsp;&nbsp;&nbsp;&nbsp;
+                         <img src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                        <apex:commandButton action="{!step2}" value="{!btnTxtStep2}" styleClass="btn"
+                          rendered="{!NOT(lightningNav)}" />
+                        <apex:commandButton action="{!step2}" value="{!btnTxtStep2}" styleClass="btn"
+                          rendered="{!lightningNav}" reRender="lightning_redirect_panel" />
+                    </apex:outputText>
+                    -->
+                    <apex:outputpanel style="overflow:scroll;height:250px;" layout="block">
+                    <apex:pageBlockTable value="{!docsList}"  var="c" rendered="{!NOT(ISNULL(docsList))}">
+                        <apex:column width="25px">
+                            <apex:inputCheckbox html-aria-label="Check this checkbox to include the template {!c.t.Name} in the list of templates to be generated." value="{!c.checked}">
+                            <apex:actionsupport event="onclick" action="{!addDoc}" rerender="panel4g" status="statLoad" />
+                            </apex:inputCheckbox>
+                        </apex:column>
+                        <apex:column headerValue="{!tm['Name']}">
+                            <img alt="{!c.t.Template_Format__c} Logo" src='{!c.formatIconImgSrc}' border='0' />
+                            &nbsp;&nbsp;
+                            <apex:outputText value="{!c.t.Name}"/>
+                        </apex:column>
+
+                        <apex:column headerValue="{!tm['S-Sign Enabled']}" width="32px"> <!-- Container if e-vender value = s-sign -->
+                        <apex:outputPanel rendered="{!c.t.SDOC__E_Sign_Vendor__c == 'SSIGN'}">
+                            <b><img alt="S-Sign Enabled" width="32" src="{!URLFOR($Resource.SDoc,'s-sign_logo.png')}" /></b>
+                        </apex:outputPanel>
+                        </apex:column>
+
+                        <apex:column headerValue="{!tm['Edit']}" width="32px"> <!-- Container if allow edit value = true -->
+                        <apex:outputPanel rendered="{!c.t.SDOC__Allow_Edit__c && (c.t.SDOC__Template_Format__c == 'PDF' || c.t.SDOC__Template_Format__c == 'HTML')}">
+                            <b><img src='/img/icon/custom51_100/pencil16.png' alt='Edit' border='0'/></b>
+                        </apex:outputPanel>
+                        </apex:column>
+
+                        <apex:column value="{!c.t.SDOC__Description__c}" headerValue="{!tm['Description']}"/>
+
+                        <apex:column value="{!c.t[additionalFields[0]]}" headerValue="{!additionalFieldsLabels[0]}" 
+                        rendered="{!(numberOfAdditionalFields > 0)}"/>
+                  <apex:column value="{!c.t[additionalFields[1]]}" headerValue="{!additionalFieldsLabels[1]}" 
+                        rendered="{!(numberOfAdditionalFields > 1)}"/>
+                        <apex:column value="{!c.t[additionalFields[2]]}" headerValue="{!additionalFieldsLabels[2]}" 
+                        rendered="{!(numberOfAdditionalFields > 2)}"/>
+                        <apex:column value="{!c.t[additionalFields[3]]}" headerValue="{!additionalFieldsLabels[3]}" 
+                        rendered="{!(numberOfAdditionalFields > 3)}"/>
+                        <apex:column value="{!c.t[additionalFields[4]]}" headerValue="{!additionalFieldsLabels[4]}" 
+                        rendered="{!(numberOfAdditionalFields > 4)}"/>
+                    </apex:pageBlockTable>
+                    </apex:outputpanel> 
+                    <apex:outputText rendered="{!recordCount>99}">
+                        <b>[{!tm['More Available - Use Search criteria to limit results']}]</b>
+                    </apex:outputText>
+                </apex:panelGroup>
+            </apex:pageBlockSectionItem>
+    </apex:pageBlockSection>
+</td><td></td>
+<td>
+    <apex:panelGroup id="panel4g">
+        <apex:pageBlockSection title="{!tm['Selected Documents']}" columns="1" collapsible="false" rendered="{!hasSelectedDocs}">
+             <apex:pageBlockSectionItem >
+                    <apex:pageBlockTable value="{!selectedDocs}" var="ca" columnsWidth="50px, *" cellpadding="0" cellspacing="0">
+                        <apex:column headerValue="{!tm['Remove']}">
+                                <apex:commandLink html-aria-label="Remove Button" action="{!removeDoc}" styleClass="btn" rerender="panel4g, panel3g" status="panel4Status">
+                                    X
+                                    <apex:Param name="tid" value="{!ca.t.ID}" />
+                                </apex:commandLink>
+                        </apex:column>
+                        <apex:column width="25px" headerValue="{!tm['Create Task']}" rendered="{!createTaskFeatureEnabled}">
+                            <apex:inputCheckbox value="{!ca.taskCreate}" rendered="{!ca.t.SDOC__Task_Auto_Create__c}"
+                                         disabled="{!NOT(ca.t.SDOC__Allow_Toggle_Task_Creation__c)}">
+                                    <apex:actionsupport event="onclick" action="{!addDoc}" rerender="panel4g, panel3g" status="panel4Status" />
+                            </apex:inputCheckbox>
+                            <apex:outputPanel rendered="{!AND(ca.t.SDOC__Task_Auto_Create__c,NOT(ca.t.SDOC__Allow_Toggle_Task_Creation__c))}">
+                                <img alt="Task Creation Locked" src='/img/func_icons/util/lock12.gif'/>
+                            </apex:outputPanel>
+                        </apex:column>
+                        <apex:column headerValue="{!tm['Name']}"><img alt="{!ca.t.Template_Format__c} Logo" src='{!ca.formatIconImgSrc}' border='0' />
+                        &nbsp;&nbsp;<apex:outputText value="{!ca.t.Name}"/></apex:column>
+                    </apex:pageBlockTable>
+                </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+    </apex:panelGroup>
+    <apex:actionStatus id="panel4Status">
+        <apex:facet name="start">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" /> {!tm['Updating...']}
+        </apex:facet>
+    </apex:actionStatus>    
+</td>
+</tr>
+<tr>
+    <td width="65%"></td>
+    <td width="5%"></td>
+    <td width="30%"></td>
+</tr>
+</table>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<apex:commandButton action="{!step2}" value="{!btnTxtStep2}" styleClass="btn"
+  rendered="{!NOT(lightningNav)}" />
+<apex:commandButton action="{!step2}" value="{!btnTxtStep2}" styleClass="btn"
+  rendered="{!lightningNav}" reRender="lightning_redirect_panel" />
+</apex:pageBlock>
+
+</apex:form>
+</apex:page>

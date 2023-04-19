@@ -1,0 +1,474 @@
+<apex:page standardController="SDOC__SDJob__c" 
+extensions="SDOC.SDJobTemplateController,SDOC.SDCreateController" 
+showHeader="false">
+<style type="text/css">
+#spinner,#done_combining{
+  position:absolute;
+  left:45%;
+  top:50%;
+}
+
+#done_combining{
+  display:none;
+}
+
+#close_page_msg{
+  position:absolute;
+  left: 35%;
+  top:50%;
+  font-weight:bold;
+  font-size: 20px;
+  margin:auto;
+}
+</style>
+<div id="spinner">
+  <img style="width: 16px;" src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+  <strong>&nbsp;&nbsp;Combining documents...</strong>
+</div>
+<div id="done_combining">
+  <img style="width: 16px;" src="{!URLFOR($Resource.SDoc,'checkbox_checked.gif')}" />
+  <span id="done_combining_msg"><strong>&nbsp;&nbsp;Done combining documents.</strong></span>
+</div>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jquery-1.8.3.min.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'FileSaver.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jszip.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jszip-utils.js')}"/>
+<script type="text/javascript">
+/* The two lists within innerDocLists take objects of the form
+{ DOC_NUMBER : DOC_CONTENTS } where DOC_NUMBER adheres to the order
+in which the documents were returned by getDocxSDocDataFiltered.
+innerDocLists does not include the first docx returned by
+getDocxSDocDataFiltered as this doc is used as the basis for the
+rest of the combined document. */
+var innerDocLists = { 'word/document.xml' : [], 'word/_rels/document.xml.rels' : [] };
+var DOCUMENT_XML = 'word/document.xml';
+var DOCUMENT_XML_RELS = 'word/_rels/document.xml.rels';
+var BASE64_MARKER = '{!BASE64_MARKER}';
+var namespacePrefix = '{!namespacePrefix}';
+
+var sitePrefix = '{!$Site.Prefix}';
+var remotingConfig = { buffer: false, escape: false, timeout: 30000 };
+
+/* This is a bit different than in SDCreate3. Here, the number of DOCXs to process
+is equal to the number of DOCX S-Docs returned by getDocxSDocIDs minus 1, as
+the first DOCX returned gets processed way before the rest */
+var numDocxSDocsToProcess = 0;
+var numDocxSDocsProcessed = 0;
+
+var finalDocxFileMap;
+
+var templateId;
+var combineAllDocName;
+var dontSaveAsDocument;
+var deleteJobs;
+var excludePageBreaks;
+var pageBreakEveryNDocs;
+
+/* Returns list of all S-Doc DOCX Ids on SDCreate3 */
+function completeDocxAttachments() {
+  Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDJobTemplateController.getDocxSDocDataFiltered}',
+    '{!JSENCODE($CurrentPage.parameters.objectName)}',
+    '{!JSENCODE($CurrentPage.parameters.filters)}',
+    function (result, event) { // Callback for the JS Remoting function.
+        if (event.status) {
+          debugAlert('[getDocxSDocData] Success!', false, false);
+          /* result is a list of sdocs */
+          var template = result[0][namespacePrefix + 'SDoc1__r'][namespacePrefix + 'SDTemplate__r'];
+          templateId = template['Id'];
+          combineAllDocName = template['Name'] + '.docx';
+          dontSaveAsDocument = template[namespacePrefix + 'Dont_Save_Mass_Merge_Docs__c'];
+          deleteJobs = template[namespacePrefix + 'Mass_Merge_Clear_Jobs__c'];
+          excludePageBreaks = template[namespacePrefix + 'Mass_Merge_Exclude_Page_Breaks__c'];
+          pageBreakEveryNDocs = template[namespacePrefix + 'Mass_Merge_Page_Break_Every_N_Docs__c'];
+          if (pageBreakEveryNDocs !== null && pageBreakEveryNDocs !== undefined) {
+            pageBreakEveryNDocs = parseInt(pageBreakEveryNDocs);
+          } else {
+            pageBreakEveryNDocs = 1;
+          }
+
+          var sdocIds = [];
+          for (var i = 0; i < result.length; i++) {
+            sdocIds.push(result[i][namespacePrefix + 'SDoc1__r']['Id']);
+          }
+          getDocxFileMapFirst(sdocIds);
+        } 
+        /* If this branch is entered, an error occurred and we weren't able to get
+        the S-Doc DOCX Ids, so we display an error and enter doneProcessingDoc() */
+        else {
+          debugAlert('[getDocxSDocData] Failure! ' + event.message, true, true);
+        }
+    },
+    remotingConfig
+  );
+}
+
+function addSdocImageIdOffset(content, idOffset) {
+  return content.replace(/sdocs_image_/g, 'sdocs_image_' + idOffset);
+}
+
+/* This function processes the DOCX S-Doc with ID sdocId.
+First function must be called before the others are as these happen
+asynchronously and we need to set the basis DOCX as the first DOCX returned
+in its own function, otherwise we'd get a race condition */
+function getDocxFileMapFirst(sdocIds) {
+  var BASE64_MARKER = '{!BASE64_MARKER}';
+  Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDCreateController.getDocxFileMap}',
+    sdocIds[0], // Use the first DOCX in the list of sdocIds as a basis for the combine-all
+    sitePrefix,
+    null,
+    function (result, event) { // Callback for the JS Remoting function.
+      if (event.status) {
+        debugAlert('[getDocxFileMap] Success! (FIRST)', false, false);
+        /* sdocIds and result are maps of the form { filename => filebody } */
+
+        /* The first DOCX filemap we get back will be the basis for the combine-all document.
+        All of its images and XML files currently comprise the final DOCX; the rest of the
+        DOCXs' data will be added to this docx later on */
+        finalDocxFileMap = result;
+
+        /* sdocIds is a List<String> of sdocIds */
+        var idOffset = 0;
+        // i = 1 so we don't re-process the first DOCX that we used as a basis
+        for (var i = 1; i < sdocIds.length; i++) {
+          numDocxSDocsToProcess++;
+          idOffset += 1000;
+          
+          /* innerDocLists is zero-indexed and excludes the first DOCX returned
+          by getDocxSDocDataFiltered so use i - 1 for docOrderNum */
+          getDocxFileMap(sdocIds[i], idOffset, i - 1);
+        }
+
+        if (numDocxSDocsToProcess === 0) {
+          createCombineAllDocx();
+        }
+      } 
+
+      else {
+        debugAlert('[getDocxFileMap] Failure! (FIRST)' + event.message, true, true);
+      }
+    },
+    remotingConfig
+  );
+}
+
+/* This function processes the DOCX S-Doc with ID sdocId */
+function getDocxFileMap(sdocId, idOffset, docOrderNum) {
+  var BASE64_MARKER = '{!BASE64_MARKER}';
+  Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDCreateController.getDocxFileMap}',
+    sdocId,
+    sitePrefix,
+    null,
+    function (result, event) { // Callback for the JS Remoting function.
+      if (event.status) {
+        debugAlert('[getDocxFileMap] Success!', false, false);
+        /* result is a map of the form { filename => filebody } */
+        for (var filename in result) {
+          if (result.hasOwnProperty(filename)) {
+            var filebody = result[filename];
+            // doctor the document.XML and document.XML.RELS files and image filename(s)
+            if (filename === DOCUMENT_XML || filename === DOCUMENT_XML_RELS) {
+              filebody = addSdocImageIdOffset(filebody, idOffset);
+              /* innerDocLists[filename][docOrderNum] maintains the order in which
+              the DOCX's were returned by getDocxSDocDataFiltered */ 
+              innerDocLists[filename][docOrderNum] = filebody;
+            } else if (filename.includes('sdocs_image_')) {
+              var filenameNew = addSdocImageIdOffset(filename, idOffset);
+              finalDocxFileMap[filenameNew] = filebody;
+            }
+          }
+        }
+        numDocxSDocsProcessed++;
+      } 
+
+      /* If an error occurred in this RemoteAction, consider the DOCX to be finished processing
+      as updateDocxDocument will not be called for this DOCX due to the error.
+      Only call doneProcessingDocx() if this was the last DOCX to be processed. */
+      else {
+        debugAlert('[getDocxFileMap] Failure! ' + event.message, true, true);
+        numDocxSDocsProcessed++;
+      }
+
+      if (numDocxSDocsProcessed === numDocxSDocsToProcess) {
+        createCombineAllDocx();
+      }
+    },
+    remotingConfig
+  );
+}
+
+function createCombineAllDocx() {
+  debugAlert('Entered createCombineAllDocx()! ', false, false);
+
+  /* Salesforce escapes HTML in the filemap for some reason; 
+  escape it here so we can assume unescaped HTML when we process
+  the files in the next couple of loops */
+  for (var filename in finalDocxFileMap) {
+    if (finalDocxFileMap.hasOwnProperty(filename)) {
+      var filebody = finalDocxFileMap[filename];
+      /* BASE64_MARKER denotes image bodies; don't mess with those */
+      if (!filebody.startsWith(BASE64_MARKER)) {
+        finalDocxFileMap[filename] = filebody;
+      }
+    }
+  }
+
+  /* Concatenate document.xml files */
+  var documentXml = finalDocxFileMap[DOCUMENT_XML];
+  documentXml = documentXml.replace('</w:body>', '').replace('</w:document>', '');
+  var idOffset = 0;
+  var pbDocx = '<w:br w:type="page"/>';
+  if (excludePageBreaks) { pbDocx = ''; }
+  for (var i = 0; i < innerDocLists[DOCUMENT_XML].length; i++) {
+    var filebody = innerDocLists[DOCUMENT_XML][i];
+    idOffset += 1000;
+    filebody = filebody.replace('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', '');
+    filebody = filebody.replace(/<w:document.*?>/g, '').replace(/<w:body.*?>/g, '');
+    filebody = filebody.replace('</w:body>', '').replace('</w:document>', '');
+    filebody = filebody.replace(/ id="/, ' id="' + idOffset); // Id's must be unique in DOCX's
+    if ((i + 1) % pageBreakEveryNDocs === 0) {
+      documentXml += pbDocx;
+    }
+    documentXml += filebody;
+  }
+  documentXml += '</w:body></w:document>';
+  finalDocxFileMap[DOCUMENT_XML] = documentXml;
+
+  /* Add the sdocs_image_* rels to the main document.xml.rels file */
+  var documentXmlRels = finalDocxFileMap[DOCUMENT_XML_RELS];
+  documentXmlRels = documentXmlRels.replace('</Relationships>', '');
+  for (var i = 0; i < innerDocLists[DOCUMENT_XML_RELS].length; i++) {
+    var filebody = innerDocLists[DOCUMENT_XML_RELS][i];
+    var rels = filebody.match(/<Relationship Id="sdocs_image_.*?\/>/g);
+    if (rels !== null) {
+      documentXmlRels += rels.join('');
+    }
+  }
+  documentXmlRels += '</Relationships>';
+  finalDocxFileMap[DOCUMENT_XML_RELS] = documentXmlRels;
+  
+  var zip = new JSZip();
+  for (var filename in finalDocxFileMap) {
+    if (finalDocxFileMap.hasOwnProperty(filename)) {
+      var filebody = finalDocxFileMap[filename];
+      // Handle image files here
+      if (filebody.startsWith(BASE64_MARKER)) {
+        filebody = filebody.replace(BASE64_MARKER, '');
+        zip.file(filename, filebody, {base64: true});
+      }
+      // Handle plaintext files here 
+      else {
+        zip.file(filename, filebody);
+      }
+    }
+  }
+
+  /* Clear jobs if specified then download the combine-all DOCX */
+  if (!deleteJobs) {
+    downloadDocument(zip);
+  } else {
+    Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDJobTemplateController.clearJobs}',
+    function (result, event) { // Callback for the JS Remoting function.
+      if (event.status) {
+        debugAlert('[clearJobs] Success! ', false, false);
+      } 
+      else {
+        debugAlert('[clearJobs] Failure!' + event.message, true, true);
+      }
+      downloadDocument(zip);
+    },
+    remotingConfig
+  );
+  }
+}
+
+function downloadDocument(zip) {
+  if (dontSaveAsDocument) {
+    saveDocxToUser(zip);
+  }
+  
+  else {
+    zip.generateAsync({type:"base64"})
+    .then(function(content) {
+      /* To avoid breaking the Apex heap size limit of 6MB, we simply don't save
+      the combined document to the Salesforce Documents folder if it's greater than 5MB,
+      and instead create it in memory and download it directly to the user's computer on 
+      the clientside. 
+
+      Note that we cannot chunk this or split it into smaller documents at this point 
+      because we're dealing with a base64 encoded version of the combine all document. 
+
+      Our alternative could be detect the 6MB limit back when we were still combining 
+      the plaintext documents, and then run updateDocxDocument(null, zip, zipChunks, 0); 
+      for small groups of documents less than 6MB each, and then download several files 
+      to the user and save several files to their Documents folder. This isn't user friendly
+      though; it's better to offer the convenience of a single document they can open
+      and print, edit, etc rather than like 5 docs. 
+
+      We could always offer a checkbox on SDTemplate that allows the user to choose between 
+      the two behaviors but for now we'll simply default to not saving any documents and 
+      serving the user a single >6MB combined document in the event of >6MB combined docs */
+      if (content.length > 5000000) {
+        saveDocxToUser(zip);
+        alert('Document contents greater than 5MB. Document will be'
+          + ' downloaded to your computer but not saved to your Salesforce org.');
+      } 
+
+      /* For combined documents that are less than 5MB in size, save the DOCX
+      as a Salesforce Document */
+      else {
+        /* Max RemoteAction input size is 4MB so request needs to be broken up into chunks.
+        Reduce chunkSize if anyone gets an "Input too long" error */
+        var zipChunks = [];
+        var chunkSize = 2000000;
+        for (var i = 0; i < content.length; i += chunkSize) {
+          zipChunks.push(content.substring(i, i + chunkSize));
+        }
+        updateDocxDocument(null, zip, zipChunks, 0);
+      }
+    });
+  }
+}
+
+function setWindowClose() {
+  setTimeout(function () { window.close(); }, 2000);
+}
+
+/* Should be the very last thing called as this closes the window */
+function saveDocxToUser(zip) {
+  zip.generateAsync({type:"blob"})
+  .then(function(content) {
+    /* Recreate the content blob to change the contenttype to DOCX
+    (or else it won't download as DOCX in certain browsers) */
+    content = new Blob(
+      [content],
+      {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
+    );
+    var spinner = document.getElementById('spinner');
+    var filesaver = saveAs(content, combineAllDocName);
+    spinner.style.display = 'none';
+    document.getElementById('done_combining').style.display = 'block';
+
+    /* IE and Edge; no fancy checkbox graphic to replace the spinner,
+    and the user will have to manually close the tab since window.close()
+    will remove the "Download file?" dialog if the user doesn't click it in time */
+    if (isMicrosoft()) {
+      document.getElementById('done_combining_msg').innerHTML += 
+        ' Once you have saved your document, you may close this tab.';
+      //listen("click", document, function() { window.close(); }); // Click anywhere to close page
+    }
+
+    /* Chrome and Firefox; replace spinner with checkbox upon download
+    and automatically close window */
+    else {
+      filesaver.onwriteend = function() {
+        /* onwriteend is when the file has been written and is ready to be saved.
+        This is RIGHT before the browser actually saves the file, so a timeout
+        is necessary to prevent a race condition.
+        If DOCX fails to download on some opens of this tab, increase timeout.
+        If this proves to be fickle, use servlet.filedownload (commented out in updateDocxDocument)
+        to open the Document, and have users whitelist the visual.force domain for popups
+        in their browser (not preferred) */
+        setWindowClose();
+      };
+    } 
+  });
+}
+
+/* This function processes the DOCX S-Doc with ID sdocId */
+function updateDocxDocument(documentId, zip, zipChunks, chunkNum) {
+  Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDJobTemplateController.updateDocxDocument}',
+    documentId,
+    templateId,
+    combineAllDocName,
+    zipChunks[chunkNum],
+    function (result, event) { // Callback for the JS Remoting function.
+        if (event.status) {
+          debugAlert('[updateDocxDocument] Success!', false, false);
+          /* result is the ID of the recently created Document */
+
+          chunkNum++;
+          if (chunkNum < zipChunks.length) {
+            updateDocxDocument(result, zip, zipChunks, chunkNum);
+          } else {
+            //window.open('/servlet/servlet.FileDownload?file=' + result, '_blank');
+            //window.close();
+            /* window.open requires you to enable pop-ups, but
+            since the tab closes before you can see it; use saveAs instead */
+            saveDocxToUser(zip);
+          }
+        } else {
+          debugAlert('[updateDocxDocument] Failure! ' + event.message, true, true);
+        }
+    },
+    remotingConfig
+  );
+}
+
+function debugAlert(message, isAlert, alwaysShow) {
+  var showDebugStatements = false; // Set false when pushing to production
+  if (showDebugStatements || alwaysShow) {
+    if (isAlert) {
+      alert(message);
+    } else {
+      console.log(message);
+    }
+  }
+}
+
+function isMicrosoft() {
+  return navigator.userAgent.indexOf("MSIE ") > 0 
+    || navigator.userAgent.indexOf("Trident") > 0 
+    || navigator.userAgent.indexOf("Edge") > 0;
+}
+
+function createPolyfills() {
+  if (!String.prototype.includes) {
+    String.prototype.includes = function(search, start) {
+      'use strict';
+      if (typeof start !== 'number') {
+        start = 0;
+      }
+      
+      if (start + search.length > this.length) {
+        return false;
+      } else {
+        return this.indexOf(search, start) !== -1;
+      }
+    };
+  }
+
+  if (!String.prototype.startsWith) {
+      String.prototype.startsWith = function(searchString, position){
+        return this.substr(position || 0, searchString.length) === searchString;
+    };
+  }
+
+  if (!Element.prototype.remove) {
+    Element.prototype.remove = function remove() {
+      if (this.parentNode) {
+        this.parentNode.removeChild(this);
+      }
+    };
+  }
+}
+
+function listen(evnt, elem, func) {
+  if (elem.addEventListener)  // W3C DOM
+    elem.addEventListener(evnt,func,false);
+  else if (elem.attachEvent) { // IE DOM
+    var r = elem.attachEvent("on"+evnt, func);
+    return r;
+  }
+  else window.alert('Error adding load event.');
+}
+listen("load", window, function() { 
+  createPolyfills();
+  completeDocxAttachments();
+});
+</script>
+</apex:page>

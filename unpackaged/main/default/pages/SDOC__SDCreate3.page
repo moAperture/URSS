@@ -1,0 +1,1179 @@
+<apex:page controller="SDOC.SDCreateController" 
+extensions="SDOC.SDUtil"
+tabStyle="SDOC__SDTemplate__c" standardstylesheets="true"
+sidebar="{!sidebar}"
+action="{!initStep3}"
+title="{!tm['View Document(s)']}"
+lightningStylesheets="true"> 
+
+<!-- ================ START LOADING DIV FOR SKIP ================ -->
+<apex:outputPanel id="pdf-stitch-panel">
+  <apex:outputPanel rendered="{!doneGettingPDFIds}">
+    <c:PDFStitch pdfStitchIdString="{!pdfStitchData}" pageOrigin="SDCreate3" pdfStitchAttData="{!pdfStitchAttData}"></c:PDFStitch>
+  </apex:outputPanel>
+</apex:outputPanel>
+<apex:outputPanel id="loading-div-for-skip-panel" rendered="{!skipPage}">
+  <style>
+    #loading-div-for-skip {
+      height: 100%;
+      width: 100%;
+      top: 0;
+      left: 0;
+      background-color: white;
+      text-align: center;
+      z-index: 100;
+      position: fixed;
+
+      font-family: sans-serif;
+      font-size: large;
+    }
+    #loading-div-for-skip hr {
+      margin: 25px 10% 25px 10%;
+    }
+  </style>
+
+  <div id="loading-div-for-skip" >
+    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'s-docs_logo.png')}" height="100" />
+    <hr />
+    <apex:outputText id="skip-page-message" value="{!skipPageMessage}" /> <br /><br />
+    <hr />
+    <img width="250" id="loading-div-spinner" src="{!URLFOR($Resource.SDoc,'lightning_spinner.gif')}" class="undraggable" unselectable="on" />
+  </div>
+</apex:outputPanel>
+
+<!-- ================ END LOADING DIV FOR SKIP ================ -->
+
+<!-- ================ START LIGHTNING_REDIRECT_PANEL ================ -->
+<apex:outputPanel id="lightning_redirect_panel">
+<script>
+if ('{!doLightningRedirect}' === 'true') {
+    if( (typeof sforce != 'undefined') && sforce && (!!sforce.one) ) {
+        sforce.one.navigateToURL('{!lightningRedirectURL}', true);
+    } else {
+        window.location.href = '{!URLFOR(lightningRedirectURL)}';
+    }
+}
+</script>
+</apex:outputPanel>
+<!-- ================= END LIGHTNING_REDIRECT_PANEL ================= -->
+
+<!-- ================= CONTROLLER VARIABLES PANEL ================= -->
+<apex:outputPanel id="controller_variables_panel">
+<script>
+  function getAutoOpenNewTabLink() {
+    return '{!autoopenNewtabLink}';
+  }
+
+  function getAutoOpenRedirectLink() {
+    return '{!autoopenRedirectLink}';
+  }
+
+  function getAttachmentMap() {
+    var attMapString = '{!jsonIDToDownloadedDocumentMap}';
+    return attMapString;
+  }
+
+  function getReturnToRecord() {
+    return '{!returnToRecord}' === 'true';
+  }
+</script>
+</apex:outputPanel>
+<!-- ================= END CONTROLLER VARIABLES PANEL ================= -->
+
+
+
+<!-- ================= NEW TAB_REDIRECT_PANEL ================= -->
+<apex:outputPanel id="newtab_redirect_panel">
+<script>
+  function openNewTabLink() {
+    if ('{!JSENCODE($CurrentPage.parameters.autodownload)}' === 'true') {
+      downloadGeneratedDocuments(true, getReturnToRecord());
+    } else {
+      if (getAutoOpenNewTabLink() !== '') {
+        window.open(getAutoOpenNewTabLink(), "_blank");
+      }
+
+      if (getAutoOpenRedirectLink() != '') {
+        window.location.replace(getAutoOpenRedirectLink());
+      }
+    }
+  }
+</script>
+</apex:outputPanel>
+<!-- ================= END NEW TAB_REDIRECT_PANEL ================= -->
+
+<head>
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'skin.css')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'yahoo-dom-event.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'container-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'animation-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__ckEditor,'/ckeditor/ckeditor.js')}"/>
+<style>
+.buttonStyle { width:75px; height:30px; }
+.buttonStyleSF1 { width:75px; height:50px; }
+.visually-hidden { 
+    border: 0;
+    padding: 0;
+    margin: 0;
+    position: absolute !important;
+    height: 1px; 
+    width: 1px;
+    overflow: hidden;
+    clip: rect(1px 1px 1px 1px); /* IE6, IE7 - a 0 height clip, off to the bottom right of the visible 1px box */
+    clip: rect(1px, 1px, 1px, 1px); /*maybe deprecated but we need to support legacy browsers */
+    clip-path: inset(50%); /*modern browsers, clip-path works inwards from each corner*/
+    white-space: nowrap; /* added line to stop words getting smushed together (as they go onto seperate lines and some screen readers do not understand line feeds as a space */
+}
+</style>
+    
+<!-- Must be included to use sforce.console.isInConsole() -->
+<!-- Use version 30.0; isInConsole() doesn't work on version 40.0 -->
+<apex:includeScript value="/support/console/30.0/integration.js"/>
+
+<script>
+// Hide Salesforce header if showheader=false is included in URL
+var hideHeader = function() {
+  var salesforceHeader = document.getElementById('AppBodyHeader');
+  if (salesforceHeader !== null) {
+    salesforceHeader.style.display = 'none';
+  }
+}
+
+var showHeader = '{!JSENCODE($CurrentPage.parameters.showHeader)}';
+if (showHeader === 'false' || showHeader === '0') {
+    hideHeader();
+}
+// End "Hide Salesforce header if showheader=false is included in URL"
+
+// Hide Salesforce header if user is invoking S-Docs from Sales Console.
+// This is finnicky as there are reported bugs with sforce.console.isInConsole();
+// if this is the case, have the user include &showHeader=false in their S-Docs button. 
+if (sforce.console.isInConsole()) {
+    hideHeader();
+}
+
+function isBlank(val) {
+  return val === '' || val === null || val === undefined;
+}
+
+function navToURL(fileid, attachmentid, urlstring){ 
+    // Navigating to the Attachment/File record itself in SF1 opens the Attachment/File
+    // in the SF1 PDF viewer without any navigation issues
+    if( (typeof sforce != 'undefined') && (sforce!=null) ) {
+        if (isBlank(fileid)) {
+          sforce.one.navigateToSObject(attachmentid);
+        }
+        else if (isBlank(attachmentid)) {
+          sforce.one.navigateToSObject(fileid);
+        }
+    }
+    else {
+            window.open(urlstring,'_blank');
+    }
+}
+
+    function getQuerystring(key, default_)
+        {
+          if (default_==null) default_="";
+          key = key.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+          var regex = new RegExp("[\\?&]"+key+"=([^&#]*)");
+          var qs = regex.exec(window.location.href);
+          if(qs == null)
+            return default_;
+          else
+            return qs[1];
+    }
+    // Create a namespace for our custom functions
+    YAHOO.namespace("force.com");
+    YAHOO.force.com.showMe = function() {
+        document.getElementById("myPanel").style.display = "block";
+        YAHOO.force.com.myDialog.show();
+    }
+    YAHOO.force.com.hideMe = function() {
+        YAHOO.force.com.myDialog.hide();
+    }
+    // Function called when the DOM is ready to create the dialog,
+    // render the dialog into the document body, add our dialog skin
+    // css to the body tag, and wire up the buttons on our dialog    
+    YAHOO.force.com.init = function() {
+        document.body.className = document.body.className + " yui-skin-sam";
+        
+        YAHOO.force.com.myDialog = new YAHOO.widget.Panel(
+            "myPanel",  // The id of our dialog container
+            { 
+                    width           :   "700px",    // You can play with this until it's right
+                    visible         :   false,  // Should be invisible when rendered
+                    draggable       :   true,   // Make the dialog draggable
+                    close           :   false,  // Don't include a close title button
+                    modal           :   true,   // Make it modal
+                    fixedCenter     :   true,   // Keep centered if window is scrolled
+                    zindex          :   100,     // Make sure it's on top of everything
+                    
+                    // This line adds the appear/vanish fade effect
+                    effect          :   {
+                                          effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.40
+                                        } 
+            }
+       );
+       YAHOO.force.com.eDialog = new YAHOO.widget.Panel(
+            "emailPanel",  // The id of our dialog container
+            { 
+                    xy              :   [75,75]
+                    ,width           :   "850px"    // You can play with this until it's right
+                    ,visible         :   false  // Should be invisible when rendered
+                    ,draggable       :   true   // Make the dialog draggable
+                    ,close           :   false  // Don't include a close title button
+                    ,modal           :   true   // Make it modal
+                    ,zindex          :   100     // Make sure it's on top of everything
+                    
+                    // This line adds the appear/vanish fade effect
+                    ,effect          :   {
+                                          effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.40
+                                        } 
+            }
+            
+         );
+        
+        // Render the dialog to the document.body level of the DOM
+        YAHOO.force.com.myDialog.render(document.body);
+        YAHOO.force.com.eDialog.render(document.body);
+    }
+
+    var newwindow;
+    function popURL(url)
+        {
+          newwindow=window.open(url,"SDocs","width=1100,height=700,top=0,resizable,scrollbars,screenX=60,top=100,screenY=100");
+            try{
+                newwindow.document.location.href = url;
+            }catch (exc){
+                newwindow.close();
+                newwindow=window.open(url,"SDocs","width=1100,height=700,top=0,resizable,scrollbars,screenX=60,top=100,screenY=100");
+                newwindow.document.location.href = url;
+            }
+            if (window.focus){newwindow.focus()}
+        }
+
+  // This is used to save the id of the button/link that was clicked that triggered a showMe modal
+  var idToFocus;
+  function storeId(element) {
+    idToFocus = element.id;
+  }
+
+  // This is used to return focus on the button/link that was clicked and trigger the modal that was just closed
+  function setFocusOnClickedElement() {
+    setTimeout(function() {
+      document.getElementById(idToFocus).focus();
+    }, 1000);
+  }
+
+  // This is used to "announce" things through a screen reader that would otherwise just be visual
+  function announce(announcement) {
+    var searchAlertElement = document.getElementById("status-updates");
+    searchAlertElement.textContent = announcement;
+  }
+</script>
+
+</head>
+<!-- This is the content of the modal dialog -->
+<div id="myPanel" style="display: none" >
+  <div class="hd">
+    <apex:outputText value="Add Comment to Document" />
+  </div> 
+  <div class="bd">
+      <apex:form >
+        <apex:pageBlock >
+          <apex:outputLabel value="Add a comment"/>
+          <apex:inputText html-aria-label="Add a comment" size="92" maxlength="255" id="comment" value="{!CommentToAdd}" />
+        </apex:pageBlock>
+        <div style="text-align: right;" >
+            <apex:actionStatus id="saveStatus">
+                        <apex:facet name="start">
+                            <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                        </apex:facet>
+            </apex:actionStatus>
+            <apex:commandButton value="Save" action="{!addComment}"
+                    oncomplete="YAHOO.force.com.hideMe();" reRender="dg" status="saveStatus">
+            </apex:commandButton>
+            <apex:commandButton value="Cancel" immediate="true" 
+              oncomplete="YAHOO.force.com.hideMe();setFocusOnClickedElement();"/>
+        </div>
+      </apex:form>
+  </div>
+  <div class="ft" style="font-size: 10px;">
+    <apex:outputPanel layout="block">
+      You can add a note/comment that will be associated with the document you have just generated.<br></br> 
+      The comment will be visible to all users when viewing this document within a list,<br></br>
+      but does not affect the document content.
+    </apex:outputPanel>
+  </div>
+</div>
+
+<apex:sectionHeader html-tabindex="1" title="{!tm['Create S-Docs']}" subtitle="{!tm['View Document(s)']}"/>
+<apex:form >
+<!-- NOTE: This escape="false" below is alright since we are just pulling in static HTML from our managed package. -->
+<apex:pageMessages id="page-messages" escape="false" />
+  <apex:outputPanel id="backnav" rendered="{!NOT(isMobileTheme) && NOT(showGenerateBtn)}">
+    <span class="style6">&lt;&lt;</span>
+    <apex:commandLink action="{!returnToObj}" value="{!tm['Back']}"/> 
+  </apex:outputPanel>
+  <apex:outputPanel id="backnavpreview" rendered="{!NOT(isMobileTheme) && showGenerateBtn && showBackButton}">
+    <span class="style6">&lt;&lt;</span>
+    <apex:commandLink action="{!cancelAndStartAgain}" value="{!tm['Back']}"/> 
+  </apex:outputPanel>
+<br></br>
+<br></br>
+
+<!-- ========================================================================= -->
+<!-- START BIG DOCUMENT WORKAROUND                                             -->
+<!-- ========================================================================= -->
+<apex:outputPanel id="jobs_wizard_panel" rendered="{!useJobsOnWizard}">
+  <apex:actionPoller action="{!checkJobStatus}" interval="5" oncomplete="ifJobsComplete();" rerender="ifJobsCompletePanel" enabled="{!NOT(wizardJobsDone)}"/>
+  <apex:actionFunction action="{!redirectToSaveAndPreviewUrl}" name="redirectToSaveAndPreviewUrl" oncomplete="" reRender=""/>
+  <apex:outputPanel id="ifJobsCompletePanel">
+    <script>
+    function ifJobsComplete() {
+      if ('{!wizardJobsDone}' === 'true') {
+        doneWithDocxStuff();
+      }
+    }
+    </script>
+  </apex:outputPanel>
+</apex:outputPanel>
+<!-- ========================================================================= -->
+<!-- END BIG DOCUMENT WORKAROUND                                               -->
+<!-- ========================================================================= -->
+
+<apex:pageBlock title="{!tm['View Document(s)']}" rendered="{!NOT(templateErrorFound)}">
+    <apex:outputPanel id="out">
+      <span id="status-updates" class="visually-hidden" role="alert" aria-live="assertive"></span>
+      <div id="generating_docs_status" style="display:none;">
+        <script>
+          setTimeout(function() {
+            announce("{!tm['Generating documents, please wait...']}"); 
+            }, 3000);
+        </script>
+        <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />&nbsp;{!tm['Generating documents, please wait...']}
+      </div>
+      <div id="uploading_to_external_storage" style="display:none;">
+        <script>
+          setTimeout(function() {
+            announce("{!uploadingToExternalStorageMessage}");
+          }, 3000);
+        </script>
+        <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />&nbsp;{!uploadingToExternalStorageMessage}
+      </div>
+    <apex:pageBlockSection title="{!tm['The following S-Docs have been created']}" columns="1" id="dg" collapsible="false">
+                          <apex:pageBlockSectionItem rendered="{!timeToRenderEmailBtn}">
+                          <apex:panelGrid columns="5">
+                            <script>
+                              announce("{!tm['The following S-Docs have been created']}");
+                            </script>
+                            <apex:outputText rendered="{!AND(showBoxIntegration, NOT(isAutoBox))}">&nbsp;&nbsp;&nbsp;&nbsp;
+                              <img alt="Arrow" src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                              <apex:commandButton value="Upload Selected Documents to Box" action="{!uploadToBox}"
+                              reRender="page-messages,dynamic-view-link,dynamic-document-number" status="boxStatus" /> 
+                              <apex:actionStatus id="boxStatus">
+                                <apex:facet name="start">
+                                    <img alt="Spinning Loading Gif" src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                                </apex:facet>
+                              </apex:actionStatus>
+                            </apex:outputText>
+                            <apex:outputText rendered="{!AND(showS3Integration, NOT(isAutoS3))}">&nbsp;&nbsp;&nbsp;&nbsp;
+                              <img alt="Arrow" src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                              <apex:commandButton value="Upload Selected Documents to S3" action="{!uploadToS3}"
+                              reRender="page-messages,dynamic-view-link,dynamic-document-number" status="s3Status" /> 
+                              <apex:actionStatus id="s3Status">
+                                <apex:facet name="start">
+                                    <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                                </apex:facet>
+                              </apex:actionStatus>
+                            </apex:outputText>
+                              <apex:outputText rendered="{!showGD}">&nbsp;&nbsp;&nbsp;&nbsp;
+                                  <img alt="Arrow" src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                                  <apex:commandButton styleClass="btn"
+                                    value="Upload Selected to Google Docs" 
+                                    action="{!uploadToGD}"
+                                    rendered="{!NOT(lightningNav)}"
+                                    reRender="dynamic-view-link,dynamic-document-number"
+                                    oncomplete=""
+                                  /> 
+                                  <apex:commandButton styleClass="btn"
+                                    value="Upload Selected to Google Docs"
+                                    action="{!uploadToGD}"
+                                    rendered="{!lightningNav}"
+                                    reRender="lightning_redirect_panel,dynamic-view-link,dynamic-document-number"
+                                    oncomplete=""
+                                  /> 
+                              </apex:outputText>
+                              <apex:outputText rendered="{!showSP}">&nbsp;&nbsp;&nbsp;&nbsp;
+                                  <img alt="Arrow" src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                                  <apex:commandButton styleClass="btn"
+                                    value="Upload Selected to Microsoft SharePoint" 
+                                    action="{!uploadToSP}"
+                                    rendered="{!NOT(lightningNav)}"
+                                    reRender="dynamic-view-link,dynamic-document-number"
+                                    oncomplete=""
+                                  /> 
+                                  <apex:commandButton styleClass="btn"
+                                    value="Upload Selected to Microsoft SharePoint" 
+                                    action="{!uploadToSP}"
+                                    rendered="{!lightningNav}"
+                                    reRender="lightning_redirect_panel,dynamic-view-link,dynamic-document-number"
+                                    oncomplete=""
+                                  /> 
+                              </apex:outputText>
+                              <apex:outputPanel id="emailButton" >
+                                <apex:outputText rendered="{!AND(showEmailBtn, NOT(isSSign))}">&nbsp;&nbsp;&nbsp;&nbsp;
+                                    <img alt="Arrow" src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                                    <apex:commandButton value="{!tm['Email Selected Docs']}" disabled="{!NOT(hasSelectedGeneratedDocs)}" action="{!advEmail}"
+                                      rendered="{!NOT(lightningNav)}" /> 
+                                    <apex:commandButton value="{!tm['Email Selected Docs']}" disabled="{!NOT(hasSelectedGeneratedDocs)}" action="{!advEmail}"
+                                      rendered="{!lightningNav}" reRender="lightning_redirect_panel" /> 
+                                </apex:outputText>
+                              </apex:outputPanel>
+                              <apex:outputText rendered="{!isSSign}">&nbsp;&nbsp;&nbsp;&nbsp;
+                                <apex:commandButton value="{!ssignButtonText}" 
+                                  action="{!redirectToSSign}"
+                                  rendered="{!AND(showSSignInPerson,NOT(lightningNav))}" />
+                                <apex:commandButton value="{!ssignButtonText}" 
+                                  action="{!redirectToSSign}"
+                                  rendered="{!AND(showSSignInPerson,lightningNav)}" reRender="lightning_redirect_panel" />
+                                <apex:commandButton value="{!tm['Print Documents']}"
+                                  action="{!redirectToPrint}" 
+                                  rendered="{!AND(signInPerson, showSSignPrintDocuments)}" />
+                              </apex:outputText>
+                              <apex:outputText rendered="{!AND(showGenerateBtn, NOT(isSSign))}">&nbsp;&nbsp;&nbsp;&nbsp;
+                                  <img alt="Arrow" src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                                  <apex:commandButton value="{!tm['Generate and Save']}" action="{!generateAndSave}"
+                                    rendered="{!NOT(lightningNav)}" /> 
+                                  <apex:commandButton value="{!tm['Generate and Save']}" action="{!generateAndSave}"
+                                    rendered="{!lightningNav}" reRender="lightning_redirect_panel" /> 
+                              </apex:outputText>
+                              <apex:outputText rendered="{!AND(showGenerateBtn, NOT(isSSign))}">&nbsp;&nbsp;&nbsp;&nbsp;
+                                  <img alt="Arrow" src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                                  <apex:commandButton value="{!tm['Cancel Preview']}" action="{!cancelAndStartAgain}"
+                                    rendered="{!NOT(lightningNav)}" /> 
+                                  <apex:commandButton value="{!tm['Cancel Preview']}" action="{!cancelAndStartAgain}"
+                                    rendered="{!lightningNav}" reRender="lightning_redirect_panel" /> 
+                              </apex:outputText>
+                            </apex:panelGrid>
+                          </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem rendered="{!NOT(isMobileTheme)}">
+                    <apex:pageBlockTable value="{!SDDocsGenerated}" var="ag">
+                        <apex:column width="20px" >
+                            <apex:outputPanel rendered="{!ag.checkboxVisible}">
+                                <apex:inputCheckbox value="{!ag.checked}">
+                                  <apex:actionsupport event="onclick" action="{!checkSelectedGeneratedDocs}" rerender="emailSubPanel,emailButton" />
+                                </apex:inputCheckbox>
+                                </apex:outputPanel>
+                            <apex:outputPanel rendered="{!NOT(ag.checkboxVisible) && showEmailBtn}">
+                                                <center><img alt="Locked" src="/img/func_icons/util/lock12.gif"/></center>
+                            </apex:outputPanel>
+                        </apex:column>
+                        <apex:column width="40px" headerValue="{!tm['View']}" rendered="{!JSENCODE($CurrentPage.parameters.useDynamicViewLink) != 'true'}">
+                            <a href='{!URLFOR(ag.docURL, null)}' target='_blank'><img alt="{!ag.documentFormat} logo" src='{!ag.formatIconImgSrc}' border='0' /></a>
+                        </apex:column>
+                        <apex:column id="dynamic-view-link" width="40px" headerValue="{!tm['View']}" rendered="{!JSENCODE($CurrentPage.parameters.useDynamicViewLink) == 'true'}">
+                          <apex:outputText escape="false" value="{!ag.updatedViewLink}" />
+                        </apex:column>
+                        <apex:column id="preview-request-link" width="40px" headerValue="{!tm['Preview Request']}" rendered="{!isSSign}">
+                          <apex:outputPanel rendered="{!ag.d.SDOC__Document_Format__c != 'HTML'}">
+                            <a aria-label="Preview Request link" href="{!ag.previewRequestURL}" target='_blank'><img alt="Magnifying glass" src="{!URLFOR($Resource.SDoc,'preview-request.png')}" height="20" /></a>
+                          </apex:outputPanel>
+                        </apex:column>
+                         <apex:column rendered="{!allowEditWhitelist}" width="40px" headerValue="{!tm['Edit']}">
+                            <apex:outputPanel rendered="{!NOT(ISBLANK(ag.editLink)) && $CurrentPage.parameters.previewFirst != 'true'}">
+                              <apex:outputPanel rendered="{!NOT(sdeditSameTab)}">
+                                <b><a aria-label="Edit link" href='{!URLFOR(ag.editLink, null)}' target='_blank'><img src='/img/icon/custom51_100/pencil16.png' alt='Edit' border='0'/></a></b>
+                              </apex:outputPanel>
+                              <apex:outputPanel rendered="{!sdeditSameTab}">
+                                <apex:includeScript value="/support/console/45.0/integration.js"/>
+                                <script>
+                                  function redirectToSDEdit() {
+                                    if (sforce.console.isInConsole()) {
+                                      openSubtab();
+                                    } else {
+                                      window.location.replace("{!URLFOR(ag.editLink + '&SDEditSameTab=true', null)}");
+                                    }
+                                  }
+
+                                  function openSubtab() {
+                                    //First find the ID of the primary tab to put the new subtab in
+                                    sforce.console.getEnclosingPrimaryTabId(openSubtabHelper);
+                                  }
+                                  
+                                  var openSubtabHelper = function openSubtabHelper(result) {
+                                    //Now that we have the primary tab ID, we can open a new subtab in it
+                                    var primaryTabId = result.id;
+                                    // Update 2020-08-25: Don't use URLFOR here as it strips the SDOC__ namespace prefix in Lightning Console for some reason
+                                    sforce.console.openSubtab(primaryTabId , "{!ag.editLink}&SDEditSameTab=true", false, 
+                                        "{!tm['Edit Document']}", null, openSuccess, "{!tm['Edit Document']}");
+                                  };
+                                  
+                                  var openSuccess = function openSuccess(result) {
+                                    //Report whether we succeeded in opening the subtab
+                                    if (result.success == true) {
+                                        closeSubtab();
+                                    } else {
+                                        alert('SDEdit subtab cannot be opened');
+                                    }
+                                  };
+
+                                  function closeSubtab() {
+                                    //First find the ID of the current tab to close it
+                                    sforce.console.getEnclosingTabId(closeSubtabHelper);
+                                  }
+
+                                  var closeSubtabHelper = function closeSubtabHelper(result) {
+                                    //Now that we have the tab ID, we can close it
+                                    var tabId = result.id;
+                                    sforce.console.closeTab(tabId);
+                                  };
+                                </script>
+                                <b><a onclick="redirectToSDEdit();" style="cursor:pointer;"><img src='/img/icon/custom51_100/pencil16.png' alt='Edit' border='0'/></a></b>
+                              </apex:outputPanel>
+                            </apex:outputPanel>
+                        </apex:column>
+                        <apex:column headerValue="{!tm['Document Number']}" rendered="{!JSENCODE($CurrentPage.parameters.useDynamicViewLink) != 'true'}">
+                          <a href="{!URLFOR(ag.docURL, null)}" target="_blank">{!ag.d.Name}</a>
+                        </apex:column>
+                        <apex:column id="dynamic-document-number" headerValue="{!tm['Document Number']}" rendered="{!JSENCODE($CurrentPage.parameters.useDynamicViewLink) == 'true'}">
+                          <a href="{!URLFOR(ag.updatedDocumentNumberLink, null)}" target="_blank">{!ag.d.Name}</a>
+                        </apex:column>
+                        <apex:column value="{!ag.documentName}" headerValue="{!tm['Document Name']}"/>                     
+                        <apex:column headerValue="{!tm['Comments']}" rendered="{!ISNULL(ag.d.SDOC__Comment__c)}">
+                            <apex:commandLink html-aria-label="Add a comment" value="{!tm['Add']}" onclick="storeId(this);" oncomplete="YAHOO.force.com.showMe();"
+                                style="padding:2px 5px 2px 5px; text-decoration:none; color:black;"
+                                action="{!setCID}" styleClass="btn"> 
+                                    <apex:param name="agID" value="{!ag.d.ID}"/>
+                            </apex:commandLink>
+                        </apex:column>
+                        <apex:repeat var="fieldLabel" value="{!generatedFieldLabels}">
+                          <apex:column value="{!ag.generatedFields[fieldLabel]}" headerValue="{!fieldLabel}"/>
+                        </apex:repeat>
+                        <apex:column headerValue="{!tm['Comments']}" rendered="{!NOT(ISNULL(ag.d.SDOC__Comment__c))}">
+                          <apex:commandLink value="{!ag.d.SDOC__Comment__c}" oncomplete="YAHOO.force.com.showMe();"
+                                action="{!setCID}"> 
+                            <apex:param name="agID" value="{!ag.d.ID}"/>
+                          </apex:commandLink>
+                        </apex:column>
+                        <apex:column value="{!ag.d.SDOC__Status__c}" headerValue="{!tm['Status']}"/> 
+                        <apex:column value="{!ag.d.CreatedBy.Name}" headerValue="{!tm['Created By']}"/> 
+                        <apex:column value="{!ag.d.CreatedDate}" headerValue="{!tm['Created On']}"/> 
+                    </apex:pageBlockTable>
+         </apex:pageBlockSectionItem>
+
+
+         <apex:pageBlockSectionItem rendered="{!isMobileTheme}">
+                    <apex:pageBlockTable value="{!SDDocsGenerated}" var="ag">
+                        <apex:column width="20px">
+                            <apex:outputPanel rendered="{!ag.checkboxVisible}">
+                                <apex:inputCheckbox value="{!ag.checked}" rendered="{!ag.checkboxVisible}"/>
+                                <apex:actionsupport event="onclick" action="{!addDoc}" rerender="emailSubPanel" />
+                            </apex:outputPanel>                 
+                            <apex:outputPanel rendered="{!NOT(ag.checkboxVisible) && showEmailBtn}">
+                                <center><img alt="Lock" src="/img/func_icons/util/lock12.gif"/></center>
+                            </apex:outputPanel>
+                        </apex:column>
+                        <!-- Fix 7/14 -->
+                        <!-- As of 7/14, S-Docs for Salesforce1 only supports viewing templates with 
+                        "Auto-create File" checked. Documents with "Auto-create File" checked and
+                        documents viewed as Visualforce pages (e.g. /apex/SDTemplatePDF?id=...)
+                        do not work properly on Salesforce1 13.0 on Android and possibly other devices
+
+                        To reliably view a File in the SF1 app's file viewer or be able to download it
+                        in a mobile browser, you need to use sforce.one.navigateToSObject() to redirect 
+                        the user to the ID of the ContentDocument (NOT ContentVersion, as this doesn't work
+                        in iOS in both the app and browser) representing that File.
+                        
+                        The problem with this is that in mobile browsers, the user will be redirected to the
+                        record detail page of the File rather than given an instant download. This is fine though
+                        as that record detail page has a download link they can use. -->
+                        <apex:column headerValue="{!tm['View']}"> <!-- rendered="{!NOT(isAndroid)}"> -->
+                        <a id="viewlink" title="Click to View"
+                                 href="#" onclick="navToURL('{!ag.contentDocumentId}','{!ag.d.Attachment_ID__c}','{!URLFOR(ag.docURL, null)}');return false;">
+                                <apex:outputText value="{!ag.d.Name}" />
+                            </a>
+                        </apex:column>
+                        <apex:column rendered="{!allowEditWhitelist}" width="40px" headerValue="{!tm['Edit']}">
+                            <apex:outputPanel rendered="{!NOT(ISBLANK(ag.editLink)) && $CurrentPage.parameters.previewFirst != 'true'}">
+                              <apex:outputPanel rendered="{!NOT(sdeditSameTab)}">
+                                <b><a href='{!URLFOR(ag.editLink + mobileSDEditParam, null)}'><img src='/img/icon/custom51_100/pencil16.png' alt='Edit' border='0'/></a></b>
+                              </apex:outputPanel>
+                            </apex:outputPanel>
+                        </apex:column>
+                        <!--
+                        <apex:column headerValue="{!tm['View']}" rendered="{!isAndroid}">
+                            <a href="{!ag.docURLAndroid}" target="_blank">
+                                <apex:outputText value="{!ag.d.Name}" />
+                            </a>
+                        </apex:column>
+                        
+                        
+                     <apex:column headerValue="{!tm['Document Number']}" rendered="{!isAndroid}">
+                            <apex:outputText value="{!ag.d.Name}" />
+                        </apex:column>
+                        -->
+                        <!-- End Fix 7/14 -->
+                        <apex:column value="{!ag.d.SDOC__Document_Name__c}" headerValue="{!tm['Document Name']}"/>
+                        <apex:column value="{!ag.d.SDOC__Status__c}" headerValue="{!tm['Status']}"/> 
+                        <apex:column value="{!ag.d.CreatedBy.Name}" headerValue="{!tm['Created By']}"/> 
+                        <apex:column value="{!ag.d.CreatedDate}" headerValue="{!tm['Created On']}"/> 
+                    </apex:pageBlockTable>
+            </apex:pageBlockSectionItem>
+    </apex:pageBlockSection>
+
+    </apex:outputPanel>
+</apex:pageBlock>
+</apex:form>
+<script type="text/javascript">
+rebind = function() {
+    var CKEDITOR   = window.CKEDITOR;
+        for ( var i in CKEDITOR.instances ){
+            var currentInstance = i;
+             break;
+        }
+        delete CKEDITOR.instances[currentInstance];
+        bind();
+    };
+    
+bind = function(){
+        var CKEDITOR_BASEPATH = '{!URLFOR($Resource.SDOC__ckEditor,'ckeditor/')}';
+        CKEDITOR.editorConfig = function( config )
+            {
+            config.height = '300';
+            config.disableNativeSpellChecker = false;
+            // Define changes to default configuration here. For example:
+            config.language = 'en';
+            config.filebrowserBrowseUrl = '{!$Page.SDOC__SDFileList}';
+            config.filebrowserUploadUrl = '{!$Page.SDOC__SDFileUpload}';
+            config.filebrowserImageBrowseUrl = '{!$Page.SDOC__SDFileList}';
+            config.filebrowserImageUploadUrl = '{!$Page.SDOC__SDFileUpload}'; 
+            config.enterMode = CKEDITOR.ENTER_BR;
+            config.shiftEnterMode = CKEDITOR.ENTER_P;
+            config.allowedContent = true;
+//            config.fullPage = true;
+            config.removePlugins = 'liststyle,tabletools,scayt,menubutton,contextmenu';
+            config.toolbar =
+            [
+            ['Maximize','Undo','Redo'],
+            ['Styles','Format','Font','FontSize'],
+            ['TextColor','BGColor'],        
+            ['Bold','Italic','Underline','Strike','-',],
+            ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock']
+            ];
+            };
+        
+        if (!document.getElementsByClassName) {
+            document.getElementsByClassName = function (cn) { 
+                var rx = new RegExp("(?:^|\\s)" + cn+ "(?:$|\\s)");
+                var allT = document.getElementsByTagName("*"), allCN = [], ac="", i = 0, a;
+                    while (a = allT[i=i+1]) {
+                      ac=a.className;
+                      if ( ac && ac.indexOf(cn) !==-1) {
+                        if(ac===cn){ allCN[allCN.length] = a; continue;   }
+                        rx.test(ac) ? (allCN[allCN.length] = a) : 0;
+                      }
+                    }
+                return allCN;
+            }
+        }
+        
+        if (document.getElementsByClassName){
+            var e = document.getElementsByClassName( 'ckeditor1' );
+            for(var i=0;i<e.length;i++)
+                {
+                var editor1 = CKEDITOR.replace( e[i]);
+                }
+           }
+        };
+    
+$ = jQuery.noConflict();
+
+//Using an empty function to override the default behavior and prevent incorrect focus from being set
+function setFocusOnLoad() {}
+
+windowonload = function() {
+  if ('{!templateErrorFound}' === 'true') {
+    return;
+  }
+  if ('{!isSDEditMobileReturn}' !== 'true') {
+    showGeneratingDocsStatus();
+    if ('{!useJobsOnWizard}' !== 'true') {
+      /* In the case of PDF Stitch usage, we need to wait until all stitched PDFs
+      have been generated before we call createAttachments() in SDCreateController. */
+      var queryString = window.location.search;
+      var urlParams = new URLSearchParams(queryString);
+      var pdfStitchIdString = urlParams.get('pdfStitchIdString');
+      if (pdfStitchIdString !== null) {
+        preparePDFStitch();
+      }
+      else {
+        attach();
+      }
+    }
+  }
+  YAHOO.force.com.init();
+}
+        
+addEvent(window, 'load', function(){ windowonload() });
+function addEvent(element, event, fn) {
+    if (element.addEventListener)
+        element.addEventListener(event, fn, false);
+    else if (element.attachEvent)
+        element.attachEvent('on' + event, fn);
+}
+
+</script>
+
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jquery-1.8.3.min.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jszip.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jszip-utils.js')}"/>
+<script type="text/javascript">
+var sitePrefix = '{!$Site.Prefix}';
+var remotingConfig = { buffer: false, escape: false, timeout: 30000 };
+var numDocxAttachmentsToProcess = 0;
+var numDocxAttachmentsProcessed = 0;
+var sdocIds = [];
+
+function completeDocxAttachments() {
+  createPolyfills();
+  var sdidStr = '{!SDDocsGeneratedIdsDocx}';
+  if (sdidStr !== null && sdidStr !== '') {
+    sdocIds = sdidStr.split(',');
+    numDocxAttachmentsToProcess = sdocIds.length;
+    for (var i = 0; i < sdocIds.length; i++) {
+      getDocxMergedContent(sdocIds[i]);
+    }
+  } else {
+    debugAlert('No DOCX\'s were selected.', false, false);
+    doneWithDocxStuff();
+  }
+}
+
+function getImgSrc(imgTag) {
+  var match = /src\s*=\s*[\'\"](.*?)[\'\"]/.exec(imgTag);
+  if (match !== null) {
+    /* .replace(/:\/\/:/g, '://'); is required for a weird firefox
+    bug where bad imgSrc's of the form https://://myUrl.com don't trigger
+    the onload nor the onerror event, resulting in numImgTagsProcessed
+    not being incremented and hence the "Generating Documents..." spinner
+    spinning indefinitely (docs fail to generate) */
+    var url = match[1].replace(/\&amp\;/g, '&').replace(/:\/\/:/g, '://');
+    if (url !== null && url !== '') {
+      return url;
+    } else { return null; }
+  } else { return null; }
+}
+
+function getDictSize(dict) {
+  var dictSize = 0;
+  for (var key in dict) {
+    if (dict.hasOwnProperty(key)) {
+      dictSize++;
+    }
+  }
+  return dictSize;
+}
+
+/* This calls getContent on a SDUtil.safePageReference linking to
+/apex/SDTemplateDocx?id=sdocId, and makes any edits to that content
+that can only be made via JavaScript (e.g. getting rich text image dimensions) */ 
+function getDocxMergedContent(sdocId) {
+  Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDCreateController.getDocxMergedContent}',
+    sdocId,
+    sitePrefix,
+    function (result, event) { // Callback for the JS Remoting function.
+        if (event.status) {
+          debugAlert('[getDocxMergedContent] Success!', false, false);
+          /* result is a string of concatenated XML files that we preprocess here */
+          var preprocessedContent = result;
+
+          /* Some <img>'s don't specify a width and height - however, DOCX requires
+          both a width and height to be specified. The following code gets the
+          width and height of those <img>'s and updates the <img>'s in result */
+          var imgTags = preprocessedContent.match(/<img.*?>/g);
+          if (imgTags !== null) {
+            var urlDimensionMap = {};
+            var numImgTagsProcessed = 0;
+            for (var i = 0; i < imgTags.length; i++) {
+              var img = new Image();
+              /* Set img.id to imgSrc and use urlDimensionMap[this.id] instead
+              of urlDimensionMap[this.src] because Salesforce modifies
+              this.src upon creation and we need the key in the dict to be
+              exactly the same as imgSrc so we can access it via imgSrc later */
+              img.onload = function(){
+                urlDimensionMap[this.id] = { width : this.width, height : this.height };
+                numImgTagsProcessed++;
+                //console.log('onload imgSrc:' + numImgTagsProcessed + '|' + this.id);
+              };
+              img.onerror = function() {
+                this.onerror=null;
+                urlDimensionMap[this.id] = { width : '0', height : '0' };
+                numImgTagsProcessed++;
+                //console.log('onerror imgSrc:' + numImgTagsProcessed + '|' + this.id);
+              }
+              var imgSrc = getImgSrc(imgTags[i]);
+              if (imgSrc !== null) {
+                img.id = imgSrc;
+                img.src = imgSrc;
+              } else {
+                numImgTagsProcessed++;
+                //console.log('null imgSrc:' + numImgTagsProcessed);
+              }
+            }
+            /* This interval is safe. Tested with intervals as low  
+            as .0001ms (actual interval in practice is 250ms) and the 
+            "if (urlDimSize == imgTags.length)" branch is entered exactly once
+            every time, hence the document generates without error every time. */
+            var intervalId = setInterval(function() {
+              /* Add the found dimensions to the images that lack dimensions */
+              console.log('nitp:'+ numImgTagsProcessed + '|itl:' + imgTags.length);
+              if (numImgTagsProcessed == imgTags.length) {
+                clearInterval(intervalId);
+                for (var i = 0; i < imgTags.length; i++) {
+                  var imgTag = imgTags[i];
+                  var imgSrc = getImgSrc(imgTags[i]);
+                  if (imgSrc !== null) {
+                    var hasWidthAlready = 
+                      imgTag.search(/width\s*?=\s*?/) != -1 
+                      || imgTag.search(/style\s*?=\s*?["'].*?width\s*?:.*?["']/) != -1;
+                    var hasHeightAlready = 
+                      imgTag.search(/height\s*?=\s*?/) != -1
+                      || imgTag.search(/style\s*?=\s*?["'].*?height\s*?:.*?["']/) != -1;
+                    /* Only add the found dimensions if this image does not already
+                    have both height and width specified */
+                    if (!(hasWidthAlready && hasHeightAlready)) {
+                      var dimensions = 'width="' + urlDimensionMap[imgSrc].width + 'px" ';
+                      dimensions += 'height="' + urlDimensionMap[imgSrc].height + 'px" ';
+                      imgTag = imgTag.replace(/\<img/, '<img ' + dimensions);
+                      preprocessedContent = preprocessedContent.replace(imgTags[i], imgTag);
+                    }
+                  }
+                }
+
+                getDocxFileMap(sdocId, preprocessedContent);
+              }
+            }, 250);
+          } 
+
+          else {
+            getDocxFileMap(sdocId, preprocessedContent);
+          }
+
+        } else {
+          debugAlert('[getDocxMergedContent] Failure! ' + event.message, true, true);
+        }
+    },
+    remotingConfig
+  );
+}
+
+/* This function processes the DOCX S-Doc with ID sdocId */
+function getDocxFileMap(sdocId, preprocessedContent) {
+  var BASE64_MARKER = '{!BASE64_MARKER}';
+  Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDCreateController.getDocxFileMap}',
+    sdocId,
+    sitePrefix,
+    preprocessedContent,
+    function (result, event) { // Callback for the JS Remoting function.
+        if (event.status) {
+          debugAlert('[getDocxFileMap] Success!', false, false);
+          /* result is a map of the form { filename => filebody } */
+
+          var zip = new JSZip();
+          for (var filename in result) {
+            if (result.hasOwnProperty(filename)) {
+              var filebody = result[filename];
+              // Handle image files here
+              if (filebody.startsWith(BASE64_MARKER)) {
+                filebody = filebody.replace(BASE64_MARKER, '');
+                zip.file(filename, filebody, {base64: true});
+              }
+              // Handle plaintext files here 
+              else {
+                zip.file(filename, filebody);
+              }
+            }
+          }
+          
+          zip.generateAsync({type:"base64"})
+          .then(function(content) {
+            /* Max RemoteAction input size is 4MB so request needs to be broken up into chunks.
+            1MB is a little over a million characters, so chunks size
+            is currently about 2MB (2 million characters).
+            Reduce chunkSize if anyone gets an "Input too long" error */
+            var zipChunks = [];
+            var chunkSize = 10000000;
+            for (var i = 0; i < content.length; i += chunkSize) {
+                zipChunks.push(content.substring(i, i + chunkSize));
+            }
+            updateDocxAttachment(sdocId, zipChunks, 0);
+          });
+        } 
+
+        /* If an error occurred in this RemoteAction, consider the DOCX to be finished processing
+        as updateDocxAttachment will not be called for this DOCX due to the error.
+        Only call updateSDocStatuses() if this was the last DOCX to be processed. */
+        else {
+          debugAlert('[getDocxFileMap] Failure! ' + event.message, true, true);
+          numDocxAttachmentsProcessed++;
+          console.log('ndap:' + numDocxAttachmentsProcessed 
+            + '|' + 'ndatp:' + numDocxAttachmentsToProcess
+          );
+          if (numDocxAttachmentsProcessed === numDocxAttachmentsToProcess) {
+            updateSDocStatuses();
+          }
+        }
+    },
+    remotingConfig
+  );
+}
+
+/* This function processes the DOCX S-Doc with ID sdocId */
+function updateDocxAttachment(sdocId, zipChunks, chunkNum) {
+  Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDCreateController.updateDocxAttachment}',
+    sdocId,
+    zipChunks[chunkNum],
+    chunkNum,
+    function (result, event) { // Callback for the JS Remoting function.
+        if (event.status) {
+          debugAlert('[updateDocxAttachment] Success!', false, false);
+
+          chunkNum++;
+          if (chunkNum < zipChunks.length) {
+            updateDocxAttachment(sdocId, zipChunks, chunkNum);
+          }
+        } else {
+          debugAlert('[updateDocxAttachment] Failure! ' + event.message, true, true);
+        }
+
+        /* Regardless of whether an error occurred in the RemoteAction, consider
+        this DOCX to be finished processing. Only call updateSDocStatuses() 
+        if this was the last DOCX to be processed. */
+        numDocxAttachmentsProcessed++;
+        if (numDocxAttachmentsProcessed === numDocxAttachmentsToProcess) {
+          updateSDocStatuses();
+        }
+    },
+    remotingConfig
+  );
+}
+
+/* This function updates the GD_Status_Text__c field on 
+all the DOCX S-Docs to 'Linked to [File|Attachment]' */
+function updateSDocStatuses() {
+  Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.SDCreateController.updateSDocStatusesPreview}',
+    sdocIds,
+    '{!$CurrentPage.parameters.previewFirst}',
+    function (result, event) { // Callback for the JS Remoting function.
+        if (event.status) {
+          debugAlert('[updateSDocStatus] Success!', false, false);
+        } else {
+          debugAlert('[updateSDocStatus] Failure! ' + event.message, true, true);
+        }
+
+        /* Once the DOCX S-Doc statuses have been updated, we're done! Regardless
+        of whether an error occurred in this RemoteAction, we're done with DOCXs,
+        so it's finally time to call doneWithDocxStuff(); */
+        doneWithDocxStuff();
+    },
+    remotingConfig
+  );
+}
+
+function doneWithDocxStuff() {
+  rerenderDocList();
+  hideGeneratingDocsStatus();
+  redirectAfterAttach();
+}
+
+/* Show the "Generating Documents..." spinner */
+function showGeneratingDocsStatus() {
+  $('[id*="generating_docs_status"]').css('display', 'inline');
+}
+
+/* Hide the "Generating Documents..." spinner */
+function hideGeneratingDocsStatus() {
+  $('[id*="generating_docs_status"]').css('display', 'none');
+}
+
+/* Show the "Uploading Document(s) to Box..." spinner */
+function showUploadingToExternalStorageStatus() {
+  $('[id*="uploading_to_external_storage"]').css('display', 'inline');
+}
+
+/* Hide the "Uploading Document(s) to Box..." spinner */
+function hideUploadingToExternalStorageStatus() {
+  $('[id*="uploading_to_external_storage"]').css('display', 'none');
+}
+
+function createPolyfills() {
+  if (!String.prototype.includes) {
+    String.prototype.includes = function(search, start) {
+      'use strict';
+      if (typeof start !== 'number') {
+        start = 0;
+      }
+      
+      if (start + search.length > this.length) {
+        return false;
+      } else {
+        return this.indexOf(search, start) !== -1;
+      }
+    };
+  }
+
+  if (!String.prototype.startsWith) {
+      String.prototype.startsWith = function(searchString, position){
+        return this.substr(position || 0, searchString.length) === searchString;
+    };
+  }
+
+  if (!Element.prototype.remove) {
+    Element.prototype.remove = function remove() {
+      if (this.parentNode) {
+        this.parentNode.removeChild(this);
+      }
+    };
+  }
+}
+
+function debugAlert(message, isAlert, alwaysShow) {
+  var showDebugStatements = false; // Set false when pushing to production
+  if (showDebugStatements || alwaysShow) {
+    if (isAlert) {
+      alert(message);
+    } else {
+      console.log(message);
+    }
+  }
+}
+</script>
+
+<apex:form >
+<script>
+
+  function downloadGeneratedDocuments(addSecondDownload) {
+    downloadGeneratedDocuments(addSecondDownload, false);
+  }
+
+
+  /* 
+  This function grabs the map of S-Doc ids to document name and document URL and downloads 
+  each one to the user's computer. This is done using a recursive function to prevent the previous
+  document from being deleted before it is downloaded completely
+  */
+  function downloadGeneratedDocuments(addSecondDownload, returnToRecord) {
+    var attachmentMap = JSON.parse(getAttachmentMap());
+    var documentList = [];
+    Object.keys(attachmentMap).map(function(id, index) {
+      var documentMap = attachmentMap[id];
+      var filename = documentMap.name;
+      var content = documentMap.link;
+      var addToList = !isSecondDownload(documentMap.format)
+      if (addSecondDownload) {
+        addToList = !addToList;
+      }
+      if (addToList) {
+        documentList.push({
+          name : filename,
+          content : content
+          }
+        );
+      }
+    });
+    downloadDocumentHelper(documentList, returnToRecord);
+  }
+
+  var documentCount = 0;
+
+  function downloadDocumentHelper(documentList, returnToRecord) {
+    if (documentList.length === 0) {
+      if (returnToRecord) {
+        // delay the redirect for the documents to complete the download
+        var waitTime = 750 + (documentCount * 350);
+        setTimeout(function() {
+          returnToObj();
+        }, waitTime);
+      } else {
+        if ('{!JSENCODE($CurrentPage.parameters.prepemail)}' === '1') {
+          if ('{!isSSign}' === 'true') {
+            setTimeout(function() {
+              redirectToSSign();
+            }, waitTime);
+          } else {
+            setTimeout(function() {
+              advEmail();
+            }, waitTime);
+          }
+        }
+      }
+      return;
+    }
+    documentCount += 1;
+    var documentMap = documentList.pop();
+    var element = document.createElement('a');
+    element.setAttribute('href', documentMap.content);
+    element.setAttribute('download', documentMap.name);
+    element.setAttribute('target', '_blank');
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    setTimeout(function() {
+      downloadDocumentHelper(documentList, returnToRecord);
+    }, 500);
+  }
+
+  function isSecondDownload(format) {
+    return (format === 'DOCX' || format === 'XLSX' || format === 'PPTX' || format === 'JOB_SPLITTER');
+  }
+
+  function onCompleteAfterAttachJS() {
+    if ('{!JSENCODE($CurrentPage.parameters.autodownload)}' === 'true') {
+      downloadGeneratedDocuments(false);
+    }
+    completeDocxAttachments();
+  }
+
+  function notOnCompleteAfterAttachJS() {
+    uploadToExternalStorageJS();
+    openNewTabLink();
+  }
+
+  function uploadToExternalStorageJS() {
+    if (
+      ({!showBoxIntegration} && {!isAutoBox}) ||
+      ({!showS3Integration} && {!isAutoS3})
+    ) {
+      showUploadingToExternalStorageStatus();
+      uploadToExternalStorageAfterDocGen();
+    }
+  }
+</script>
+
+<apex:actionFunction name="rerenderDocList" action="{!doNothing}"  oncomplete="bind();" 
+                    rerender="out,emailSubPanel,BtnsTopPanel,BtnsBotPanel"/>
+<apex:actionFunction name="preparePDFStitch" action="{!updatePDFStitchIds}" oncomplete="rerenderPDFStitchPanel()" reRender=""/>
+<apex:actionFunction name="rerenderPDFStitchPanel" action="{!doNothing}" oncomplete="" reRender="pdf-stitch-panel"/>
+<apex:actionFunction name="setStitchedPDFIds" action="{!setStitchedPDFIds}" oncomplete="attach();" reRender="">
+  <apex:param name="stitchedPDFIdJSON" value=""/>
+</apex:actionFunction>
+<apex:actionFunction name="attach" action="{!writeDocumentData}" oncomplete="createAttachments();"/>       
+<apex:actionFunction rendered="{!oncompleteAfterAttach}" name="createAttachments" action="{!createAttachments}" oncomplete="onCompleteAfterAttachJS();" reRender="controller_variables_panel,page-messages"/>
+<apex:actionFunction rendered="{!NOT(oncompleteAfterAttach)}" name="createAttachments" action="{!createAttachments}" oncomplete="notOnCompleteAfterAttachJS();" rerender="lightning_redirect_panel,newtab_redirect_panel,controller_variables_panel,out,emailSubPanel,BtnsTopPanel,BtnsBotPanel,page-messages" />
+<apex:actionFunction name="uploadToExternalStorageAfterDocGen" action="{!uploadToExternalStorage}" reRender="page-messages,dynamic-view-link,dynamic-document-number" status="saveStatus" oncomplete="hideUploadingToExternalStorageStatus();" />
+<apex:actionFunction name="redirectAfterAttach" action="{!docsDoneRedirect}" oncomplete="uploadToExternalStorageJS();openNewTabLink();redirectToSaveAndPreviewUrl();" reRender="lightning_redirect_panel,controller_variables_panel,jobs_wizard_panel,skip-page-message" />
+<apex:actionFunction name="returnToObj" action="{!returnToObj}" reRender="controller_variables_panel" />
+<apex:actionFunction name="advEmail" action="{!advEmail}" reRender="controller_variables_panel" />
+<apex:actionFunction name="redirectToSSign" action="{!redirectToSSign}" reRender="controller_variables_panel" />
+
+</apex:form>
+</apex:page>

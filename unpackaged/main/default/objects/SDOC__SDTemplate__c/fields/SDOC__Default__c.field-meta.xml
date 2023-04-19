@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Default__c</fullName>
+    <defaultValue>true</defaultValue>
+    <deprecated>false</deprecated>
+    <description>Checking this box will make this template visible on initial load of document creation page based on the Object Type. Typically, you want to set this checkbox for the 10 most used templates for each object type.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Checking this box will make this template visible on initial load of document creation page based on the Object Type. Typically, you want to set this checkbox for the 10 most used templates for each object type.</inlineHelpText>
+    <label>Initially Visible</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

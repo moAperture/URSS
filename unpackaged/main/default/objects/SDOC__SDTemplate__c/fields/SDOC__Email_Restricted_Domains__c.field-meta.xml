@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Email_Restricted_Domains__c</fullName>
+    <deprecated>false</deprecated>
+    <encryptionScheme>None</encryptionScheme>
+    <externalId>false</externalId>
+    <inlineHelpText>If this field is not blank, users will be allowed to email this template only to the specified domains. 
+Please specify domains as a comma-delimited list without @ symbols, for example: 
+sdocs.com,test.org,trailhead.edu</inlineHelpText>
+    <label>Restrict Email To The Following Domains</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>TextArea</type>
+</CustomField>

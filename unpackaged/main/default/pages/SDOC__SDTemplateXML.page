@@ -1,0 +1,15 @@
+<!-- action="{!initDML}" is critical here. See the MY MASTER COMMENT comment in SDTemplateController for an explanation. -->
+<!-- SDTemplateXML can be used as a catch-all. DOC-NEW uses this. 
+See #nice_to_know_dev entry in Slack from 10/6/2020 for more details,
+especially before modifying this page. -->
+<apex:page standardController="SDOC__SDoc__c"
+extensions="SDOC.SDTemplateController"
+action="{!initDML}"
+contentType="{!contentType}"
+standardStylesheets="false"
+showHeader="false"
+applyHTMLTag="false"
+applyBodyTag="false"
+cache="true">
+  <apex:dynamicComponent componentValue="{!xfinal}" invokeAfterAction="true" />
+</apex:page>

@@ -1,0 +1,1005 @@
+<apex:page controller="SDOC.SDMigrateController" lightningStylesheets="true">
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jszip.js')}"/>
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jszip-utils.js')}"/>
+  <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'FileSaver.js')}"/>
+  <style>
+    h1 { font-size: 18px; }
+    h2 { font-size: 16px; }
+    .zmzp { padding:0; margin:0; }
+  </style>
+  <div style="padding-left:16px; padding-top:16px;">
+    <div class="zmzp">
+      <div class="zmzp" style="display:inline-block;">
+        <img class="zmzp" src="{!URLFOR($Resource.SDoc,'s-docs_logo.png')}" width="96" />
+      </div>
+      <div class="zmzp" style="display:inline-block; margin-left: 16px;">
+        <h1 class="zmzp" style="font-size:20px;">Migrate S-Docs Templates</h1>
+      </div>
+    </div>
+    <div style="height:10px;" />
+    <!-- START IMPORT -->
+    <apex:pageBlock title="Import">
+          Upload Zip
+          <input type="file" id="fileInput" name="file" accept=".zip" onchange="handleUpload(this.files[0]);" />
+          <br />
+          <br />
+          <table>
+            <tr>
+              <td style="width: 220px;">
+                Set SDOC Template Values?
+              </td>
+              <td>
+                <input type="checkbox" onchange="showImportValues();"/>
+              </td>
+            </tr>
+          </table>
+
+          <div id="importValues" style="display: none;"> <br />
+            <button type="button" onclick="addSelector();"> Add Field / Value </button> <br /> <br />
+            <div id="field-value-section"></div>
+            <div id="settings-panel">
+              Download Settings: <button type="button" onclick="getImportSettings();"> Download Current Settings </button> <input type='text' id='import-settings-name' placeholder="Enter Desired File Name"/> <br /> <br />
+              Upload Settings: <input type="file" id="importFileInput" name="file" accept=".txt" onchange="uploadImportSettings(this.files[0]);"></input> <br /> <br />
+            </div>
+          </div>
+          <br />
+          <br />
+          <button type="button" id="startImport" onclick="handleFile(true);">Start Import</button>
+          <div id="import-status-msg" /> 
+          <br />
+          <div id="import-manifest-msg"/>
+          <table id="import-manifest" cellspacing="0" cellpadding="0">
+          </table>
+          <br />
+          <div id="ignore-manifest-msg"/>
+          <table id="ignore-manifest" cellspacing="0" cellpadding="0">
+          </table>
+          <div id='error-log' />
+    </apex:pageBlock>
+    <style>
+      #import-manifest, #ignore-manifest {
+        border-collapse: collapse;
+      }
+      #import-manifest tr td, #ignore-manifest tr td {
+        border: 1px solid black;
+        padding: 2px;
+      }
+      .import-manifest-group-even, .ignore-manifest-group-even {
+        background-color: #f5f6fa;
+      }
+      .import-manifest-group-odd, .ignore-manifest-group-odd {
+        background-color: #bdc3c7;
+      }
+      #settings-panel{
+        border: 1px solid black; 
+        padding-left: 10px;
+        padding-top: 10px;
+        width: 550px;
+      }
+    </style>
+    <apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc, 'jquery-1.8.3.min.js')}"/>
+    <script type="text/javascript">
+      addEvent(window, 'load', function(){ disableButton(); });
+      function addEvent(element, event, fn) {
+          if (element.addEventListener) element.addEventListener(event, fn, false);
+          else if (element.attachEvent) element.attachEvent('on' + event, fn);
+      }
+
+      function disableButton(){
+        j$('#startImport').attr('disabled','disabled');
+        j$('#startImport').css('color', '#909090');
+      }
+      /* Asynchronous process (all files processed at the same time) for
+      inserting files from the zip into Salesforce */
+      j$ = jQuery.noConflict();
+      var numRecordsImported = -1;
+      var numFilesToImport = 0;
+      var numFields = 0;
+      var fieldList = JSON.parse('{!writeableFieldsJSON}');
+      var fieldNames = JSON.parse('{!nonAPIFieldNamesJSON}');
+
+      var dropVals = [];
+
+      var fieldValueMap = {};
+
+      var errorString = '';
+
+      function logError(errorMsg) {
+        console.log('ERROR: ' + errorMsg);
+        errorString += 'ERROR: ' + errorMsg + " <br /> ";
+        
+        document.getElementById('error-log').innerHTML = errorString;
+      }
+
+      function showErrors() {
+        j$('#error-log').toggle();
+      }
+      
+      function showImportValues(){
+        j$('#importValues').toggle();
+        if (!j$('#importValues').is(':visible')) {
+          for (var i = 0; i < numFields; i++) {
+            j$('#wrapper-' + i).remove();
+          }
+          numFields = 0;
+          dropVals = [];
+          fieldValueMap = {};
+          document.getElementById('importFileInput').value = "";
+        }
+      }
+
+      function addSelector() {
+        dropVals.push("");
+        var dropdown = "<div id='wrapper-" + numFields + "'> <select id='drop-" + numFields + "' onchange='updateField(" + numFields + ")' style='width: 300px; text-align-last:center;'>";
+        for (var i = 0; i < fieldList.length; i++) { 
+          if(!dropVals.includes(fieldList[i])) { 
+            dropdown += "<option value='" + fieldList[i] + "'> " + fieldNames[i].replace('`', '\'') + " </option>"
+          }
+        }
+        dropdown += "</select> <input id='area-" + numFields + "' type='text' onkeyup='updateArea(" + numFields + ")' /> <button type='button' onclick='removeField(" + numFields + ")'> Remove Field </button> <br /> <br /> </div>"
+        j$('#field-value-section').append(dropdown);
+        numFields++;
+      }
+
+      function removeField(selectorId) {
+        delete dropVals[selectorId];
+        delete fieldValueMap[j$('#drop-' + selectorId).val().toLowerCase()];
+        j$('#wrapper-' + selectorId).empty();
+      }
+
+      function updateField(selectorId){
+        if (j$('#drop-' + selectorId).val() == '-- Select a Field --') {
+          dropVals[selectorId] = '';
+        }
+        else {
+          j$('#area-' + selectorId).val("");
+          dropVals[selectorId] = j$('#drop-' + selectorId).val();
+          fieldValueMap[j$('#drop-' + selectorId).val().toLowerCase()] = "";
+        }
+        for (var i = 0; i < numFields; i++) {
+          if (i != selectorId) {
+            j$('#drop-' + i).empty();
+            for (var j = 0; j < fieldList.length; j++) { 
+              if (!dropVals.includes(fieldList[j]) || (fieldList[j] == dropVals[i] && dropVals[i] != '')) { 
+                j$('#drop-' + i).append("<option value='" + fieldList[j] + "'> " + fieldNames[j] + " </option>");
+              }
+            }
+            j$('#drop-' + i).val(dropVals[i]);
+          }
+        }
+      }
+
+      function updateArea(areaId) {
+        if(!(j$('#drop-' + areaId).val() == '-- Select a Field --')) {
+          fieldValueMap[j$('#drop-' + areaId).val().toLowerCase()] = j$('#area-' + areaId).val();
+        }
+      }
+
+      var templateFolderFiles;
+      var zipEntryDataPromises;
+      var importFile;
+
+      function handleUpload(f){
+        importFile = f;
+        j$('#startImport').removeAttr('disabled');
+        j$('#startImport').css('color', '#333');
+        handleFile(false);
+      }
+
+      function handleFile(upsert) {
+        var f = importFile;
+        templateFolderFiles = [];
+        zipEntryDataPromises = [];
+        j$('#import-manifest').empty();
+        j$('#ignore-manifest').empty();
+        j$('#import-manifest-msg').empty();
+        j$('#ignore-manifest-msg').empty();
+        JSZip.loadAsync(f)
+        .then(function(zipFile) { // asynchronous
+          addZipEntriesToTemplateFolderFiles(zipFile);
+          Promise.all(zipEntryDataPromises).then(function() {
+            console.log('Entered Promise.all(zipEntryDataPromises).then()');
+            if(upsert == true) processTemplateFolderFiles(upsert);
+            else generateImportManifest();
+          });
+        }, function (e) {
+            var errorMsg = e.message;
+            alert(errorMsg);
+        });
+      }
+
+      function addZipEntriesToTemplateFolderFiles(zipFile) {
+        zipFile.forEach(function (relativePath, zipEntry) { // synchronous
+          var relativePathSplit = relativePath.split('/');
+          var folderName = relativePathSplit[0];
+          console.log(relativePath);
+          if (folderName != 'templates') {
+            logError('Bad folder: ' + folderName);
+          }
+          /* !relativePath.endsWith('/') skips "template/", "template/1234/", etc.,
+          ensuring that only full paths like "template/1234/1234.sdtemplate" are processed */
+          else if (!relativePath.endsWith('/')) {
+            zipEntryDataPromises.push(zipEntry.async("base64").then(function(data) { // asynchronous
+              /* JSZip requires an asynchronous method to get the zipEntry's file body.
+              Just add the relative path and the file body to a list here, then process
+              that list synchronously later on once all Promises are complete, that way 
+              the chance of bugs caused by async processing is minimized. */
+              templateFolderFiles.push({ relativePath : relativePath, fileBodyBase64 : data });
+              console.log('Finished for zipEntry.async("base64").then() for ' + relativePath);
+            }));
+          }
+        });
+      }
+
+      /*
+
+      Salesforce database:
+
+      S-Docs Template 1:
+          Name: Some PDF Template
+          HashID: 1234
+
+      S-Docs Template 2:
+          Name: Some PDF-Upload S-Sign Template
+          HashID: 5678
+          Has PDF Attachment (uploaded PDF)
+          Has PNG Attachments (PDF page images)
+
+      S-Sign Template related to S-Docs Template 2:
+          HashID: 7890
+
+      Zip file:
+
+          sdocs_export.zip/templates/1234/:
+              1234.sdtemplate         // template import string (s-docs)
+
+          sdocs_export.zip/templates/5678/:
+              5678.sdtemplate         // template import string (s-docs)
+              7890.sstemplate         // template import string (s-sign)
+              uploadedFile.pdf        // uploaded PDF
+              uploaded_page_00001.png     // PDF page image
+              uploaded_page_00002.png     // PDF page image
+              uploaded_page_00003.png     // PDF page image
+
+      templateFolders:
+      {
+        
+        1234 : {
+          sdtemplate : 1234.sdtemplate
+        },
+
+        5678 : {
+          sdtemplate : 5678.sdtemplate,
+          sstemplate : 7890.sstemplate,
+          attachments : [
+            uploadedFile.pdf,
+            uploaded_page_00001.png,
+            uploaded_page_00002.png,
+            uploaded_page_00003.png
+          ]
+        },
+
+      }
+
+      */
+      /* Default RemoteAction timeout limit is relatively low. This can result
+      in the following error on certain orgs:
+        ERROR: Error in RemoteAction: ... Error was: Unable to connect to the server (transaction aborted: timeout).
+      The timeout is 30 seconds by default. We increased the timeout to 120 seconds here via "timeout: 120000",
+      which should resolve the error in some cases. 
+      Additionally, buffer is "false" by default. We set that to "true" here which should further assist in preventing timeout errors. 
+      Update 2020-11-16: Set buffer tot "false" again to resolve the following error: "VFRemote.js:85 Uncaught TypeError: Cannot read property 'tid' of undefined" */
+      var remotingConfig = { buffer: false, escape: true, timeout: 120000 };
+
+      var orgAgnosticIDSet = new Set();
+      function generateImportManifest(){
+        orgAgnosticIDSet = new Set();
+        document.getElementById('import-manifest-msg').innerHTML += 'NOTE: All Attachments on Records are cleared and reinserted upon importing <br />';
+        addImportManifestRow(0);
+        addIgnoreManifestRow();
+      }
+
+      var sdTemplateDict = {};
+      var ssTemplateDict = {};
+      var attachmentDict = {};
+
+
+      function addImportManifestRow(recordNum) {
+        var templateFolderFile = templateFolderFiles[recordNum];
+        var relativePath = templateFolderFile.relativePath;
+        var fileBodyBase64 = templateFolderFile.fileBodyBase64;
+        var relativePathSplit = relativePath.split('/');
+        var sdocsTemplateOrgAgnosticID = relativePathSplit[1];
+        orgAgnosticIDSet.add(sdocsTemplateOrgAgnosticID);
+        var filename = relativePathSplit[2];
+        filename = filename.replace(/#SLASH#/g, '/');
+        var importManifestName = filename;
+        console.log('relativePath: ' + relativePath);
+        if (fileBodyBase64 == "" || fileBodyBase64 == null) {
+          logError('Empty filebody on ' + relativePath);
+        }
+        
+        if (filename.endsWith('.sdtemplate')) {
+          Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SDMigrateController.getTemplateIdAndName}',
+            filename,
+            fileBodyBase64,
+            sdocsTemplateOrgAgnosticID,
+            'SDTemplate',
+            function (result, event){
+              if(event.status){
+                var recordInfo = result.split('#SPLITTER#');
+                sdTemplateDict[sdocsTemplateOrgAgnosticID] = {name: recordInfo[0], id: recordInfo[1]};
+                if (recordNum < templateFolderFiles.length - 1 ) {
+                  addImportManifestRow(recordNum + 1);
+                }
+                else {
+                  completeImportManifest()
+                }
+              } else {
+                logError(event.message);
+              }
+            }, remotingConfig
+          );
+        }
+        else if (filename.endsWith('.sstemplate')) {
+          Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SDMigrateController.getTemplateIdAndName}',
+            filename,
+            fileBodyBase64,
+            sdocsTemplateOrgAgnosticID,
+            'SSTemplate',
+            function (result, event){
+              if(event.status){
+                var recordInfo = result.split('#SPLITTER#');
+                ssTemplateDict[sdocsTemplateOrgAgnosticID] = {name: recordInfo[0], id: recordInfo[1]};
+                if (recordNum < templateFolderFiles.length - 1 ) {
+                  addImportManifestRow(recordNum + 1);
+                }
+                else {
+                  completeImportManifest()
+                }
+              }
+            }, remotingConfig
+          );
+        }
+        else {
+          if(attachmentDict[sdocsTemplateOrgAgnosticID] == null) {
+            attachmentDict[sdocsTemplateOrgAgnosticID] = {};
+          }
+          attachmentDict[sdocsTemplateOrgAgnosticID][Object.keys(attachmentDict[sdocsTemplateOrgAgnosticID]).length] = {name: filename, id: 'To Be Inserted'};
+          if (recordNum < templateFolderFiles.length -1 ) {
+            addImportManifestRow(recordNum + 1);
+          }
+          else {
+            completeImportManifest();
+          }
+        }
+      }
+
+      function addIgnoreManifestRow() {
+        var templateFolderFile = templateFolderFiles[0];
+        var relativePath = templateFolderFile.relativePath;
+        var fileBodyBase64 = templateFolderFile.fileBodyBase64;
+        var relativePathSplit = relativePath.split('/');
+        var sdocsTemplateOrgAgnosticID = relativePathSplit[1];
+        var filename = relativePathSplit[2];
+        filename = filename.replace(/#SLASH#/g, '/');
+        var importManifestName = filename;
+        console.log('relativePath: ' + relativePath);
+        if (fileBodyBase64 == "" || fileBodyBase64 == null) {
+          logError('Empty filebody on ' + relativePath);
+        }
+        
+        if (filename.endsWith('.sdtemplate')) {
+          Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SDMigrateController.getIgnoredFields}',
+            fileBodyBase64,
+            '{!writeableFieldsJSON}',
+            function (result, event){
+              if(event.status){
+                completeIgnoreManifest(result);
+              } else {
+                logError(event.message);
+              }
+            }, remotingConfig
+          );
+        }
+      }
+
+      function completeImportManifest() {
+        var isOddGroup = true;
+        orgAgnosticIDSet.forEach(function(oaid) {
+          updateImportManifest('SDTemplate', sdTemplateDict[oaid].name, sdTemplateDict[oaid].id, isOddGroup, true);
+          if(ssTemplateDict[oaid] != null) {
+            updateImportManifest('SSTemplate', ssTemplateDict[oaid].name, ssTemplateDict[oaid].id, isOddGroup, true);
+          }
+          if(attachmentDict[oaid] != null) {
+            for (var i = 0; i < Object.keys(attachmentDict[oaid]).length; i++) {
+              console.log(i);
+              updateImportManifest('Attachment', attachmentDict[oaid][i].name, attachmentDict[oaid][i].id, isOddGroup, true);
+            }
+          }
+          isOddGroup = !isOddGroup;
+        })
+      }
+
+      function completeIgnoreManifest(result) {
+        if(result.length > 0){
+          var isOddGroup = true;
+          document.getElementById('ignore-manifest-msg').innerHTML += 'The uploaded templates contain the following custom fields that do not exist in this org. These fields and their values will be ignored upon import:';
+          for(var i = 0; i < result.length; i++){
+            console.log(i);
+            document.getElementById('ignore-manifest').innerHTML += '<tr class="ignore-manifest-group-' + (isOddGroup ? 'odd' : 'even') + '">'
+            + '<td>' + result[i] + '</td></tr>';    
+            isOddGroup = !isOddGroup; 
+          }
+        }
+      }
+
+
+      function processTemplateFolderFiles() {
+        var templateFolders = {};
+        console.log('Entered processTemplateFolderFiles');
+        /* First loop builds out the templateFolders object structure to completion
+        so that it can be more easily processed in the second loop. */
+        for (var i = 0; i < templateFolderFiles.length; i++) {
+          var templateFolderFile = templateFolderFiles[i];
+          var relativePath = templateFolderFile.relativePath;
+          var fileBodyBase64 = templateFolderFile.fileBodyBase64;
+          var relativePathSplit = relativePath.split('/');
+          var objectLabel = '';
+      
+          var sdocsTemplateOrgAgnosticID = relativePathSplit[1];
+          var filename = relativePathSplit[2];
+          filename = filename.replace(/#SLASH#/g, '/');
+          var importManifestName = filename;
+          console.log('relativePath: ' + relativePath);
+          var fileObject = { filename : filename, fileBodyBase64 : fileBodyBase64 };
+          if (fileBodyBase64 == "" || fileBodyBase64 == null) {
+            logError('Empty filebody on ' + relativePath);
+          }
+          var templateFolder = templateFolders[sdocsTemplateOrgAgnosticID];
+          if (templateFolder == null) {
+            templateFolder = { sdocsTemplateOrgAgnosticID : sdocsTemplateOrgAgnosticID, attachments : [] };
+          }
+          if (filename.endsWith('.sdtemplate')) {
+            templateFolder.sdtemplate = fileObject;
+            objectLabel = 'S-Docs Template';
+            numFilesToImport++;
+          } else if (filename.endsWith('.sstemplate')) {
+            templateFolder.sstemplate = fileObject;
+            objectLabel = 'S-Sign Template';
+            numFilesToImport++;
+          } else {
+            templateFolder.attachments.push(fileObject);
+            objectLabel = 'Attachment';
+            numFilesToImport++;
+          }
+          
+          templateFolders[sdocsTemplateOrgAgnosticID] = templateFolder;
+         
+        }
+
+        incrementImportStatusMsg();
+        console.log('Entering templateFolders for-loop');
+        for (var key in templateFolders) {
+          if (templateFolders.hasOwnProperty(key)) {
+            upsertSDTemplate(templateFolders[key]);
+          }
+        }
+          
+        
+      }
+
+      function getImportSettings() {
+        var blob = new Blob(['#IMPORT-SETTINGS# ' + JSON.stringify(fieldValueMap)], {type: "text/plain;charset=utf-8"});
+        if(j$('#import-settings-name').val() != ''){
+          saveAs(blob, j$('#import-settings-name').val());
+        }
+        else {
+          saveAs(blob, 'import-settings.txt');
+        }
+      }
+
+      function uploadImportSettings(settings) {
+        for (var i = 0; i < numFields; i++) {
+          j$('#wrapper-' + i).remove();
+        }
+        numFields = 0;
+        dropVals = [];
+        fieldValueMap = {};
+
+        var importedSettings = {};
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          console.log(e.target.result);
+          var toParse = '';
+          if (!e.target.result.startsWith('#IMPORT-SETTINGS#')) {
+            logError('Invalid settings file');
+          }
+          else {
+            toParse = e.target.result.substr(18);
+          }
+
+          console.log(toParse);
+
+          importedSettings = JSON.parse(toParse);
+          for (var key in importedSettings) {
+            var initialVal = '';
+            for (var j = 0; j < fieldList.length; j++) {
+              if (fieldList[j] == key) {
+                initialVal = fieldNames[j];
+              }
+            }
+            dropVals.push(key);
+            var dropdown = "<div id='wrapper-" + numFields + "'> <select id='drop-" + numFields + "' value='" + key +  "' onchange='updateField(" + numFields + ")' style='width: 300px; text-align-last:center;'>"
+            dropdown += "<option value='" + key + "'> " + initialVal.replace('`', '\'') + " </option>"
+            for (var i = 0; i < fieldList.length; i++) { 
+              if(!dropVals.includes(fieldList[i])) { 
+                dropdown += "<option value='" + fieldList[i] + "'> " + fieldNames[i].replace('`', '\'') + " </option>"
+              }
+            }
+            dropdown += "</select> <input id='area-" + numFields + "' type='text' value='" + importedSettings[key] + "' onkeyup='updateArea(" + numFields + ")' /> <br /> <br /> </div>"
+            j$('#field-value-section').append(dropdown);
+            numFields++;
+          }
+          fieldValueMap = importedSettings;
+        }
+        console.log(settings);
+        reader.readAsText(settings);
+
+      }
+
+      function updateImportManifest(objectLabel, filename, objectId, isOddGroup, delay) {        
+        document.getElementById('import-manifest').innerHTML += '<tr class="import-manifest-group-' + (isOddGroup ? 'odd' : 'even') + '">'
+          + '<td>' + objectLabel + '</td><td>' + filename + '</td><td>' + objectId + '</td></tr>';     
+      }
+
+      function upsertSDTemplate(templateFolder) {    
+        var remoteActionName = 'upsertSDTemplate';
+        logRemoteActionRunning(remoteActionName, templateFolder);
+        Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SDMigrateController.upsertSDTemplate}',
+          templateFolder.sdtemplate.filename,
+          templateFolder.sdtemplate.fileBodyBase64,
+          templateFolder.sdocsTemplateOrgAgnosticID,
+          fieldValueMap,
+          function(result, event) {
+            if(!event.status) {
+              logRemoteActionError(remoteActionName, templateFolder, event);
+            } else {
+              logRemoteActionSuccess(remoteActionName, templateFolder);
+              incrementImportStatusMsg();
+              upsertSSTemplate(templateFolder);
+            }
+            //Sfdc.canvas.publisher.publish({name:"publisher.close",payload:{refresh:"true"}});
+          },remotingConfig
+        );
+      }
+
+      function upsertSSTemplate(templateFolder) {
+        if (templateFolder.sstemplate == null) {
+          clearAttachmentsOnSDTemplate(templateFolder);
+          return;
+        }
+        var remoteActionName = 'upsertSSTemplate';
+        logRemoteActionRunning(remoteActionName, templateFolder);
+        Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SDMigrateController.upsertSSTemplate}',
+          templateFolder.sstemplate.filename,
+          templateFolder.sstemplate.fileBodyBase64,
+          templateFolder.sdocsTemplateOrgAgnosticID,
+          function(result, event) {
+            if(!event.status) {
+              logRemoteActionError(remoteActionName, templateFolder, event);
+            } else {
+              logRemoteActionSuccess(remoteActionName, templateFolder);
+              incrementImportStatusMsg();
+              clearAttachmentsOnSDTemplate(templateFolder);
+            }
+            //Sfdc.canvas.publisher.publish({name:"publisher.close",payload:{refresh:"true"}});
+          },remotingConfig
+        );
+      }
+
+      function clearAttachmentsOnSDTemplate(templateFolder) {
+        var remoteActionName = 'clearAttachmentsOnSDTemplate';
+        logRemoteActionRunning(remoteActionName, templateFolder);
+        Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SDMigrateController.clearAttachmentsOnSDTemplate}',
+          templateFolder.sdocsTemplateOrgAgnosticID,
+          function(result, event) {
+            if(!event.status) {
+              logRemoteActionError(remoteActionName, templateFolder, event);
+            } else {
+              logRemoteActionSuccess(remoteActionName, templateFolder);
+              if (templateFolder.attachments.length > 0) {
+                insertAttachmentOnSDTemplate(templateFolder, 0);
+              }
+              else if (numRecordsImported == numFilesToImport) {
+                updateImportStatusMsg('Import complete. Successfully imported ' + numRecordsImported + '/' + numFilesToImport + ' records.');
+              }
+            }
+            //Sfdc.canvas.publisher.publish({name:"publisher.close",payload:{refresh:"true"}});
+          },remotingConfig
+        );
+      }
+
+      function insertAttachmentOnSDTemplate(templateFolder, attachmentNum) {
+        var remoteActionName = 'insertAttachmentOnSDTemplate';
+        logRemoteActionRunning(remoteActionName, templateFolder);
+        Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SDMigrateController.insertAttachmentOnSDTemplate}',
+          templateFolder.attachments[attachmentNum].filename,
+          templateFolder.attachments[attachmentNum].fileBodyBase64,
+          templateFolder.sdocsTemplateOrgAgnosticID,
+          function(result, event) {
+            if(!event.status) {
+              logRemoteActionError(remoteActionName, templateFolder, event);
+            } else {
+              logRemoteActionSuccess(remoteActionName, templateFolder);
+              incrementImportStatusMsg();
+              attachmentNum++;
+              if (attachmentNum == templateFolder.attachments.length) {
+                updateImportStatusMsg('Import complete. Successfully imported ' + numRecordsImported + '/' + numFilesToImport + ' records.');
+              } else {
+                insertAttachmentOnSDTemplate(templateFolder, attachmentNum);
+              }
+            }
+            //Sfdc.canvas.publisher.publish({name:"publisher.close",payload:{refresh:"true"}});
+          },remotingConfig
+        );
+      }
+
+      function logRemoteActionRunning(remoteActionName, templateFolder) {
+        console.log('Running RemoteAction: ' + getLogRemoteActionName(remoteActionName, templateFolder));
+      }
+
+      function logRemoteActionSuccess(remoteActionName, templateFolder) {
+        console.log('Successfully ran RemoteAction: ' + getLogRemoteActionName(remoteActionName, templateFolder));
+      }
+
+      function logRemoteActionError(remoteActionName, templateFolder, event) {
+        logError('Error in RemoteAction: ' + getLogRemoteActionName(remoteActionName, templateFolder) + ' \nError was: ' + event.message);
+      }
+
+      function getLogRemoteActionName(remoteActionName, templateFolder) {
+        return remoteActionName + ' (sdocsTemplateOrgAgnosticID: \'' + templateFolder.sdocsTemplateOrgAgnosticID + '\')'
+      }
+
+      function incrementImportStatusMsg() {
+        numRecordsImported++;
+        statusMsg = 'Imported ' + numRecordsImported + '/' + numFilesToImport + ' records.';
+        updateImportStatusMsg(statusMsg);
+      }
+
+      function updateImportStatusMsg(statusMsg) {
+        document.getElementById('import-status-msg').innerHTML = statusMsg;
+      }
+    </script>
+    <!-- END IMPORT -->
+    <!-- START EXPORT -->
+    <apex:pageBlock title="Export">
+      <apex:pageBlockSection title="Export Columns" columns="2" showHeader="false">
+        <apex:pageBlockSectionItem >
+          <apex:form >
+            <apex:outputPanel id="get-zip-control-panel">
+              <apex:outputPanel rendered="{!$CurrentPage.parameters.convertPDFPageImages == 'true'}">
+                <apex:outputPanel id="convert-pdf-page-image-javascript">
+                  <script>
+                    function convertPDFPageImages() {
+                      convertPDFPageImagesHelper();
+                      setConvertPDFPageImagesStatusMsg();
+                    }
+                    function setConvertPDFPageImagesStatusMsg() {
+                      document.getElementById('convert-pdf-page-image-status-msg').innerHTML = 'Converted {!pdfPageImageNum}/{!numPDFPageImages} PDF page images.'
+                    }
+                    if ('{!convertingPageImages}' === 'true') {
+                      convertPDFPageImages();
+                    }
+                  </script>
+                </apex:outputPanel>
+                <apex:actionFunction name="convertPDFPageImagesHelper" action="{!convertPDFPageImages}" reRender="convert-pdf-page-image-javascript" />
+                <apex:commandButton value="Convert PDF Page Images" onclick="convertPDFPageImages();" oncomplete="" />
+                <br />
+                <br />
+                <div id="convert-pdf-page-image-status-msg" />
+                <script>setConvertPDFPageImagesStatusMsg();</script>
+                <br />
+                <br />
+                <br />
+                <br />
+              </apex:outputPanel>
+
+              Filters:<br /><apex:inputTextarea id="sdtemplate-filters" value="{!sdtemplateFilters}" style="width:400px; height: 72px;" />
+              <br />
+              <apex:commandButton value="Set Export Filters" action="{!setExportSettings}" reRender="controller-variables-panel,get-zip-control-panel" />
+              <br />
+              <br />
+              <table>
+                <tr>
+                  <td style="width: 220px;">
+                    Exclude SDOC Template Fields?
+                  </td>
+                  <td>
+                    <apex:inputCheckbox >
+                      <apex:actionSupport event="onchange" action="{!handleCheckbox}" reRender="controller-variables-panel,get-zip-control-panel" />
+                    </apex:inputCheckbox>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="width: 220px;">
+                    Exclude Attachments?
+                  </td>
+                  <td>
+                    <apex:inputCheckbox value="{!excludeAttachments}"/> <c:HelpIcon helpText="{!excludeAttachmentsHelpText}"/>
+                  </td>
+                </tr>
+              </table>
+              <apex:outputPanel id="excludePanel" rendered="{!showExclude}">
+                <apex:panelGrid columns="3" id="picklist">
+                    <apex:selectList id="sel1" value="{!leftSidePicklistSelected}" multiselect="true" style="width:300px" size="5">
+                        <apex:selectOptions value="{!unselectedValues}" />
+                    </apex:selectList>
+                        <apex:panelGroup >
+                            <br/>
+                      
+                            <apex:commandButton value=">" action="{!selectClick}" rerender="picklist">
+                            </apex:commandButton>
+                            <br/><br/>
+                            
+                            <apex:commandButton value="<" style="margin-left: 0px;" action="{!unSelectClick}" rerender="picklist">
+                            </apex:commandButton>
+                        </apex:panelGroup>
+                    <apex:selectList id="sel2" value="{!rightSidePicklistSelected}" multiselect="true" style="width:300px" size="5">
+                        <apex:selectOptions value="{!selectedValues}" />
+                    </apex:selectList>
+                    <script>
+                      function getFieldString() {
+                        return '{!excludedFields}';
+                      }
+                    </script>
+                </apex:panelGrid>
+                <br />
+                <div id="settings-panel">
+                  Download Settings: &nbsp; <apex:commandButton value="Download Current Settings" onclick="generateExcludeSettings();" oncomplete="" /> <input type='text' id='export-settings-name' placeholder="Enter Desired File Name"/> <br /> <br />
+                  Upload Settings: <input type="file" id="exportFileInput" name="file" accept=".txt" onchange="uploadExportSettings(this.files[0]);"> </input> <br /> <br />
+                  <apex:actionFunction name="handleUploadedExportSettings" action="{!handleExportSettings}" />
+                </div>
+              </apex:outputPanel>
+              <br />
+              <br />
+              <apex:commandButton value="Generate Export Zip" onclick="generateExport();" oncomplete="" disabled="{!NOT(clickedSetExportSettings)}" />
+              <br />
+              <div id="export-status-msg" />
+              <br />
+              <apex:outputText value="{!exportErrorMsg}" rendered="{!NOT(ISBLANK(exportErrorMsg))}" />
+              <style>
+                #export-manifest {
+                  border-collapse: collapse;
+                }
+                #export-manifest tr td {
+                  border: 1px solid black;
+                  padding: 2px;
+                }
+                .export-manifest-group-even {
+                  background-color: #f5f6fa;
+                }
+                .export-manifest-group-odd {
+                  background-color: #bdc3c7;
+                }
+              </style>
+              <apex:outputText value="The following {!numExportRecords} records will be exported for {!numTemplates} templates:<br />{!exportManifest}" rendered="{!NOT(ISBLANK(exportManifest))}" escape="false" />
+            </apex:outputPanel>
+          </apex:form>
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+          <apex:form >
+            <br/>
+            View all Createable/Modifiable fields?
+            <apex:inputCheckbox >
+              <apex:actionSupport event="onchange" action="{!handleFieldsShowCheckbox}" rerender="fieldsTablePanel" />
+            </apex:inputCheckbox>
+            <br />
+            <br />
+            <style>
+              .hidden {
+                display: none;
+              }
+            </style>
+            <apex:outputPanel id="fieldsTablePanel">
+            <apex:pageBlockSection title="View Fields Columns" columns="2" showHeader="False">
+              <apex:pageBlockSectionItem >
+                <apex:pageblockTable value="{!writeableFieldsView}" id="writeablefieldsTable" style="width:300px" var="writeableFields" rendered="{!showFields}" headerClass="hidden">
+                    <apex:column value="{!writeableFields}"/> 
+                </apex:pageblockTable>
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem >
+              <apex:pageblockTable value="{!nonAPIFieldNamesView}" id="nonAPIfieldsTable" style="width:300px" var="nonAPIFields" rendered="{!showFields}" headerClass="hidden">
+                <apex:column value="{!nonAPIFields}"/> 
+            </apex:pageblockTable>  
+            </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+            </apex:outputPanel>
+          </apex:form>
+        </apex:pageBlockSectionItem>
+      </apex:pageBlockSection>
+
+      <!-- Note (Zach C): This outputpanel at one point had a function getSDTemplateFilters()
+      that returned the backend variable sdtemplateFilters. However, sdtemplateFilters
+      is already bound to an inputtextarea on this page, and if you try referencing
+      that variable here as well, this panel will fail to rerender altogether.
+      The solution is to move getSDTemplateFilters() outside of this panel,
+      and to have it grab the value of sdtemplateFilters by using jquery to grab
+      the value of the inputtextarea that variable is bound to. -->
+      <apex:outputPanel id="controller-variables-panel">
+        <script>
+          function getexportRecordDataList() {
+            return JSON.parse('{!exportRecordDataListJSON}');
+          }
+        </script>
+      </apex:outputPanel>
+    </apex:pageBlock>
+
+    
+    <script>
+      /* Synchronous process (process one file at a time) performed via
+      recursive calls to getFileDataForExport() */
+      j$ = jQuery.noConflict();
+      var exportRecordDataList;
+      var files = [];
+      var fieldsToExclude = "";
+      var numRecords;
+
+      function getSDTemplateFilters() {
+        return j$('textarea[id$="sdtemplate-filters"').val();
+      }
+
+      function generateExcludeSettings() {
+        fieldsToExclude = getFieldString();
+        var blob = new Blob(['#EXPORT-SETTINGS# ' + fieldsToExclude + '#FILTER-SPLITTER#' + getSDTemplateFilters()], {type: "text/plain;charset=utf-8"});
+        if(j$('#export-settings-name').val() != ''){
+          saveAs(blob, j$('#export-settings-name').val());
+        }
+        else {
+          saveAs(blob, 'export-settings.txt');
+        }
+      }
+
+      function uploadExportSettings(settings) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          var toSend = '';
+          if (!e.target.result.startsWith('#EXPORT-SETTINGS#')) {
+            logError('Invalid settings file');
+          }
+          else {
+            toSend = e.target.result.substr(18);
+          }
+          console.log(toSend);
+          Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SDMigrateController.createSDMigrateSettings}',
+            toSend,
+            function(result, event) {
+              if(event.status) {
+                handleUploadedExportSettings();
+              }
+            }, {escape: false}
+          );
+        }
+        reader.readAsText(settings);
+      }
+
+      function generateExport() {
+        exportRecordDataList = getexportRecordDataList();
+        numRecords = exportRecordDataList.length;
+        numRecordsToExport = numRecords;
+        var exportThisTemplate = true;
+        for (var i = 0; i < exportRecordDataList.length; i++){
+          if (j$('#check-' + i).length) {
+            if (j$('#check-' + i).is(':checked')) {
+              exportThisTemplate = true;
+            }
+            else {
+              exportThisTemplate = false;
+            }
+          }
+          
+          if (exportThisTemplate == false) {
+            numRecordsToExport--;
+          }
+        }
+        updateExportStatusMsg(0, numRecordsToExport);
+        if(typeof getFieldString == 'function') {
+          fieldsToExclude = getFieldString();
+        }
+        else {
+          fieldsToExclude = "";
+        }
+        getFileDataForExport(0, true);
+      }
+      numRecordsProcessed = 0;
+      function getFileDataForExport(recordNum, exportBool) {
+        
+        Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SDMigrateController.getFileDataForExport}',
+          exportRecordDataList[recordNum].recordId,
+          exportRecordDataList[recordNum].sdocsTemplateOrgAgnosticID,
+          fieldsToExclude,
+          function(result, event) {
+            if(event.status) {
+              var toExport = false;
+              if (j$('#check-' + recordNum).length) {
+                if (j$('#check-' + recordNum).is(':checked')) {
+                  toExport = true;
+                }
+                else {
+                  toExport = false;
+                }
+              }
+              else {
+                toExport = exportBool;
+              }
+
+              recordNum++;
+              
+              if (toExport == true) {
+                files.push(JSON.parse(result));
+                numRecordsProcessed++;
+                updateExportStatusMsg(numRecordsProcessed, numRecordsToExport);
+              }
+              
+              if (recordNum < numRecords) {
+                getFileDataForExport(recordNum, toExport);
+              } else if (numRecords == 0) {
+                alert('0 records selected for export');
+              } else {
+                addFilesToZip();
+                numRecordsProcessed = 0;
+              }
+            } else {
+              alert('Error in S-Docs remote action: ' + event.message);
+            } 
+            //Sfdc.canvas.publisher.publish({name:"publisher.close",payload:{refresh:"true"}});
+          },{escape: false}
+        );
+      }
+
+
+      function addFilesToZip() {
+        var zipFile = new JSZip();
+        for (var i = 0; i < files.length; i++) {
+          var fileBody = dataURLToFile('data:image/png;base64,' + files[i].fileBodyBase64, files[i].relativePath);
+          zipFile.file(files[i].relativePath, fileBody);
+        }
+        zipFile.generateAsync({type:"blob"})
+          .then(function(contentAll) {
+            saveAs(contentAll, 'sdocs_export.zip');
+            files = []
+          });
+      }
+
+      function updateExportStatusMsg(recordNum, numRecordsToExport) {
+        var statusMsg = 'Added ' + recordNum + '/' + numRecordsToExport + ' records to zip.';
+        document.getElementById('export-status-msg').innerHTML = statusMsg;
+      }
+
+      function dataURLToFile(dataurl, filename) {
+        var arr = dataurl.split(','),
+        mime = arr[0].match(/:(.*?);/)[1],
+        bstr = atob(arr[1]), 
+        n = bstr.length, 
+        u8arr = new Uint8Array(n);
+            
+        while(n--){
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        
+        return new File([u8arr], filename, {type:mime});
+      }
+    </script>
+    <!-- END EXPORT -->
+  </div>
+</apex:page>

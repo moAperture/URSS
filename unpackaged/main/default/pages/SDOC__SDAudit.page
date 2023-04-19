@@ -1,0 +1,71 @@
+<apex:page controller="SDOC.SDUtil">
+  <!-- SDAudit's runSDocsReport runs if SDConfig param is not specified as 'true';
+  otherwise, this page is used for SDConfig -->
+  <style type="text/css">
+      #auditResultTable {
+        border-collapse: collapse;
+        border-radius: 25px;
+      }
+
+      #auditResultTable, #auditResultTable td {
+        border: 1px solid #eaeaea;
+      }
+
+      #headers {
+        font-weight: bold;
+      }
+      
+  </style>
+  <apex:outputPanel rendered="{!(internalAuthenticationParam) || (externalAuthenticationParam)}">
+    <apex:form id="myForm">
+      <apex:outputPanel id="auditStatusPanel">
+        <apex:outputPanel rendered="{!(externalAuthenticationParam) && (runningReport)}">
+          <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" style="vertical-align:middle;" />&nbsp; Running Audit, please wait...
+          <br/><br/>
+        </apex:outputPanel>
+        <apex:pageMessages id="pageMsg"/>
+      </apex:outputPanel>
+      <apex:pageBlock >
+        <apex:outputLabel value="Interval (in days)">
+          <c:HelpIcon helpText="This value indicates how many days each row of data should represent. As an example, if you wanted to get a report for each week of the last 10 weeks, you would set this interval to 7."/>  
+        </apex:outputLabel>
+        <apex:inputText value="{!interval}"/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <apex:outputLabel value="Number of Intervals">
+          <c:HelpIcon helpText="This value indicates how many rows of data should be gathered. As an example, if you wanted to get a report for each week of the last 10 weeks, you would set this value to 10."/>
+        </apex:outputLabel>
+        <apex:inputText value="{!numIntervals}"/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <apex:commandButton id="runAuditBtn" value="Run Audit"  onclick="clearData();" reRender="mainPanel" disabled="{!(finishedRunningReport) && (externalAuthenticationParam)}"/>
+      </apex:pageBlock>
+      <apex:actionFunction name="clearData" action="{!clearData}" oncomplete="setRunningReport();" reRender=""/>
+      <apex:actionFunction name="setRunningReport" action="{!setRunningReport}" oncomplete="runAudit();" reRender="auditStatusPanel">
+        <apex:param value="true" name="runningReport"/>
+      </apex:actionFunction>
+      <apex:actionFunction name="runAudit" action="{!runSDocsReport}" oncomplete="runAuditOnComplete();" reRender="mainPanel,runAuditBtn,auditStatusPanel" />
+      <apex:outputPanel id="mainPanel">
+        <script>
+          function runAuditOnComplete() {
+              if ('{!finishedRunningReport}' === 'true' ) {
+                  return;
+              }
+              runAudit();
+          }
+        </script>
+        <apex:outputPanel rendered="{!internalAuthenticationParam}">
+          <table id="auditResultTable">
+            <tr id="headers">
+              <td>Start</td><td>End</td><td>Total # SFDC Licenses</td><td>Total # Community Licenses</td>
+              <td>SFDC License</td><td># SFDC Users Generating S-Docs</td><td>S-Doc Community License</td>
+              <td># Community Users Generating S-Docs</td><td>S-Doc Uniformity Ratio</td><td>Run As or Site Guest User T/F</td>
+              <td># Active S-Doc Templates</td><td># Documents Created</td><td># Documents Emailed</td>
+              <td># SFDC Users Generating S-Sign Requests</td><td># Community Users Generating S-Sign Requests</td>
+              <td>S-Sign Uniformity Ratio</td><td># Active S-Sign Templates</td><td>Envelopes Created</td><td>Envelopes Completed</td>
+            </tr>
+            <apex:outputText value="{!usageReportTableRows}" escape="false" />
+          </table>
+        </apex:outputPanel>
+      </apex:outputPanel>
+    </apex:form>
+  </apex:outputPanel>
+</apex:page>

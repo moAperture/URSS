@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__GD_Enabled__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <description>Enable Google Docs Upload. Check here if you want to allow users to upload this doc to Google docs. Your org must be properly configured for S-Docs to work with Google Docs (see documentation for setup steps)</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Enable Google Docs Upload. Check here if you want to allow users to upload this doc to Google docs. Your org must be properly configured for S-Docs to work with Google Docs (see documentation for setup steps)</inlineHelpText>
+    <label>Google Docs Enabled</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__Enable_Detail_Reports__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <description>By checking, a child record will be created for each field value on every document created using this template. This will allow for reporting, but will require significantly more data storage.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>By checking, a child record will be created for each field value on every document created using this template. This will allow for reporting, but will require significantly more data storage.</inlineHelpText>
+    <label>Enable Detail Reports</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

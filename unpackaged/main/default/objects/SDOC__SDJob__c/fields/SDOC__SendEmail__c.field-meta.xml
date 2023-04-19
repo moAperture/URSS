@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SDOC__SendEmail__c</fullName>
+    <defaultValue>&quot;0&quot;</defaultValue>
+    <deprecated>false</deprecated>
+    <description>&quot;0&quot; indicates no email will be sent. To auto-email the generated doc(s), set to &quot;1&quot;. 
+&quot;Doclist&quot; must contain a Template ID with fomat set to &quot;HTML&quot; (this will become the email body) and must also set the &quot;to&quot; and &quot;subject&quot; fields for the outbound email.</description>
+    <encryptionScheme>None</encryptionScheme>
+    <externalId>false</externalId>
+    <inlineHelpText>&quot;0&quot; indicates no email will be sent. To auto-email the generated doc(s), set to &quot;1&quot;. 
+&quot;Doclist&quot; must contain a Template ID with fomat set to &quot;HTML&quot; (this will become the email body) and must also set the &quot;to&quot; and &quot;subject&quot; fields for the outbound email.</inlineHelpText>
+    <label>Send Email</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>
