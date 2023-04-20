@@ -2182,6 +2182,12 @@
         <readable>true</readable>
     </fieldPermissions>
     <layoutAssignments>
+        <layout>Airline__c-Airline Layout</layout>
+    </layoutAssignments>
+    <layoutAssignments>
+        <layout>Location__c-Location Layout</layout>
+    </layoutAssignments>
+    <layoutAssignments>
         <layout>User-User Layout</layout>
     </layoutAssignments>
     <layoutAssignments>
@@ -2478,7 +2484,15 @@
         <visible>false</visible>
     </recordTypeVisibilities>
     <tabVisibilities>
+        <tab>Airline__c</tab>
+        <visibility>Hidden</visibility>
+    </tabVisibilities>
+    <tabVisibilities>
         <tab>Import_Travelers</tab>
+        <visibility>Hidden</visibility>
+    </tabVisibilities>
+    <tabVisibilities>
+        <tab>Location__c</tab>
         <visibility>Hidden</visibility>
     </tabVisibilities>
     <tabVisibilities>

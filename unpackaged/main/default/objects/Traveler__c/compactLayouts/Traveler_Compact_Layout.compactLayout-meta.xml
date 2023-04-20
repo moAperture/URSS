@@ -3,6 +3,7 @@
     <fullName>Traveler_Compact_Layout</fullName>
     <fields>Traveler_Name__c</fields>
     <fields>Mission__c</fields>
+    <fields>Mission_Codename__c</fields>
     <fields>Relocation_Status__c</fields>
     <label>Traveler Compact Layout</label>
 </CompactLayout>
